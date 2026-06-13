@@ -81,14 +81,27 @@ export default async function handler(req, res) {
     const scores = {};
     (Array.isArray(games) ? games : games.games || []).forEach(game => {
       // Statuts considérés comme terminés ou en cours
-      const status = (game.status || game.state || "").toLowerCase();
-      const isActive = status.includes("finish") || status.includes("complet") ||
-                       status.includes("live") || status.includes("progress") ||
-                       status === "ft" || status === "1h" || status === "2h" || status === "ht";
-      if (!isActive) return;
+      const status = (
+  game.time_elapsed ||
+  game.status ||
+  game.state ||
+  ""
+).toLowerCase();
 
-      const home = TEAM_MAP[game.home_team || game.homeTeam || game.home] || game.home_team || game.home;
-      const away = TEAM_MAP[game.away_team || game.awayTeam || game.away] || game.away_team || game.away;
+const isActive =
+  game.finished === "TRUE" ||
+  status.includes("finish") ||
+  status.includes("live") ||
+  status.includes("progress") ||
+  status === "ft" ||
+  status === "1h" ||
+  status === "2h" ||
+  status === "ht";
+
+if (!isActive) return;
+
+const home = TEAM_MAP[game.home_team_name_en] || game.home_team_name_en;
+const away = TEAM_MAP[game.away_team_name_en] || game.away_team_name_en;
       const key = `${home}_${away}`;
       const id = MATCH_IDS[key];
       if (!id) return;
