@@ -1,7 +1,140 @@
 import { useState, useEffect, useCallback } from "react";
 import { getUsers, saveUsers, getPronos, saveProno, subscribeToScores, subscribeToPronos } from "./firebase";
-import { CDM_MATCHES, PHASE_CONFIG, FLAGS, AVATARS } from "./matches";
-import AdminPage from "./AdminPage";
+
+// ─── FLAGS ────────────────────────────────────────────────────────────────
+const FLAGS = {
+  "Mexico":"🇲🇽","South Africa":"🇿🇦","South Korea":"🇰🇷","Czech Republic":"🇨🇿",
+  "Canada":"🇨🇦","Bosnia and Herzegovina":"🇧🇦","Qatar":"🇶🇦","Switzerland":"🇨🇭",
+  "Brazil":"🇧🇷","Morocco":"🇲🇦","Haiti":"🇭🇹","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+  "USA":"🇺🇸","Paraguay":"🇵🇾","Australia":"🇦🇺","Turkey":"🇹🇷",
+  "Germany":"🇩🇪","Curaçao":"🇨🇼","Ivory Coast":"🇨🇮","Ecuador":"🇪🇨",
+  "Netherlands":"🇳🇱","Japan":"🇯🇵","Sweden":"🇸🇪","Tunisia":"🇹🇳",
+  "Belgium":"🇧🇪","Egypt":"🇪🇬","Iran":"🇮🇷","New Zealand":"🇳🇿",
+  "Spain":"🇪🇸","Cape Verde":"🇨🇻","Saudi Arabia":"🇸🇦","Uruguay":"🇺🇾",
+  "France":"🇫🇷","Senegal":"🇸🇳","Norway":"🇳🇴","Argentina":"🇦🇷",
+  "Algeria":"🇩🇿","Austria":"🇦🇹","Jordan":"🇯🇴","Portugal":"🇵🇹",
+  "DR Congo":"🇨🇩","Colombia":"🇨🇴","Uzbekistan":"🇺🇿","England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+  "Croatia":"🇭🇷","Ghana":"🇬🇭","Panama":"🇵🇦","Kosovo":"🇽🇰",
+};
+
+const CDM_MATCHES = [
+  {id:1,group:"Groupe A",phase:"group",date:"2026-06-11",time:"21:00",home:"Mexico",away:"South Africa",stadium:"Azteca, Mexico City"},
+  {id:2,group:"Groupe A",phase:"group",date:"2026-06-12",time:"18:00",home:"South Korea",away:"Switzerland",stadium:"SoFi Stadium, LA"},
+  {id:3,group:"Groupe A",phase:"group",date:"2026-06-15",time:"21:00",home:"Mexico",away:"South Korea",stadium:"Levi's Stadium, SF"},
+  {id:4,group:"Groupe A",phase:"group",date:"2026-06-16",time:"18:00",home:"Switzerland",away:"South Africa",stadium:"Gillette Stadium, Boston"},
+  {id:5,group:"Groupe A",phase:"group",date:"2026-06-19",time:"20:00",home:"Mexico",away:"Switzerland",stadium:"Arrowhead, Kansas City"},
+  {id:6,group:"Groupe A",phase:"group",date:"2026-06-19",time:"20:00",home:"South Africa",away:"South Korea",stadium:"NRG Stadium, Houston"},
+  {id:7,group:"Groupe B",phase:"group",date:"2026-06-12",time:"21:00",home:"Canada",away:"Switzerland",stadium:"BC Place, Vancouver"},
+  {id:8,group:"Groupe B",phase:"group",date:"2026-06-13",time:"18:00",home:"Qatar",away:"Scotland",stadium:"Lumen Field, Seattle"},
+  {id:9,group:"Groupe B",phase:"group",date:"2026-06-16",time:"21:00",home:"Canada",away:"Qatar",stadium:"BMO Field, Toronto"},
+  {id:10,group:"Groupe B",phase:"group",date:"2026-06-17",time:"18:00",home:"Switzerland",away:"Scotland",stadium:"Lincoln Financial, Philly"},
+  {id:11,group:"Groupe B",phase:"group",date:"2026-06-20",time:"20:00",home:"Canada",away:"Scotland",stadium:"Hard Rock, Miami"},
+  {id:12,group:"Groupe B",phase:"group",date:"2026-06-20",time:"20:00",home:"Qatar",away:"Switzerland",stadium:"AT&T Stadium, Dallas"},
+  {id:13,group:"Groupe C",phase:"group",date:"2026-06-13",time:"21:00",home:"Brazil",away:"Morocco",stadium:"Mercedes-Benz, Atlanta"},
+  {id:14,group:"Groupe C",phase:"group",date:"2026-06-14",time:"15:00",home:"Haiti",away:"Scotland",stadium:"SoFi Stadium, LA"},
+  {id:15,group:"Groupe C",phase:"group",date:"2026-06-17",time:"21:00",home:"Brazil",away:"Haiti",stadium:"Levi's Stadium, SF"},
+  {id:16,group:"Groupe C",phase:"group",date:"2026-06-18",time:"15:00",home:"Morocco",away:"Scotland",stadium:"Hard Rock, Miami"},
+  {id:17,group:"Groupe C",phase:"group",date:"2026-06-21",time:"20:00",home:"Brazil",away:"Scotland",stadium:"Lincoln Financial, Philly"},
+  {id:18,group:"Groupe C",phase:"group",date:"2026-06-21",time:"20:00",home:"Morocco",away:"Haiti",stadium:"Gillette Stadium, Boston"},
+  {id:19,group:"Groupe D",phase:"group",date:"2026-06-14",time:"18:00",home:"USA",away:"Paraguay",stadium:"MetLife, New York"},
+  {id:20,group:"Groupe D",phase:"group",date:"2026-06-14",time:"21:00",home:"Australia",away:"TBD",stadium:"Lumen Field, Seattle"},
+  {id:21,group:"Groupe D",phase:"group",date:"2026-06-18",time:"18:00",home:"USA",away:"Australia",stadium:"Arrowhead, Kansas City"},
+  {id:22,group:"Groupe D",phase:"group",date:"2026-06-18",time:"21:00",home:"Paraguay",away:"TBD",stadium:"NRG Stadium, Houston"},
+  {id:23,group:"Groupe D",phase:"group",date:"2026-06-22",time:"20:00",home:"USA",away:"TBD",stadium:"AT&T Stadium, Dallas"},
+  {id:24,group:"Groupe D",phase:"group",date:"2026-06-22",time:"20:00",home:"Paraguay",away:"Australia",stadium:"Mercedes-Benz, Atlanta"},
+  {id:25,group:"Groupe E",phase:"group",date:"2026-06-15",time:"15:00",home:"Germany",away:"Curaçao",stadium:"Levi's Stadium, SF"},
+  {id:26,group:"Groupe E",phase:"group",date:"2026-06-15",time:"18:00",home:"Ivory Coast",away:"Ecuador",stadium:"SoFi Stadium, LA"},
+  {id:27,group:"Groupe E",phase:"group",date:"2026-06-19",time:"15:00",home:"Germany",away:"Ivory Coast",stadium:"Arrowhead, Kansas City"},
+  {id:28,group:"Groupe E",phase:"group",date:"2026-06-19",time:"18:00",home:"Ecuador",away:"Curaçao",stadium:"Hard Rock, Miami"},
+  {id:29,group:"Groupe E",phase:"group",date:"2026-06-23",time:"20:00",home:"Germany",away:"Ecuador",stadium:"AT&T Stadium, Dallas"},
+  {id:30,group:"Groupe E",phase:"group",date:"2026-06-23",time:"20:00",home:"Curaçao",away:"Ivory Coast",stadium:"MetLife, New York"},
+  {id:31,group:"Groupe F",phase:"group",date:"2026-06-15",time:"21:00",home:"Netherlands",away:"Japan",stadium:"NRG Stadium, Houston"},
+  {id:32,group:"Groupe F",phase:"group",date:"2026-06-16",time:"15:00",home:"Tunisia",away:"TBD",stadium:"Gillette Stadium, Boston"},
+  {id:33,group:"Groupe F",phase:"group",date:"2026-06-20",time:"15:00",home:"Netherlands",away:"Tunisia",stadium:"BC Place, Vancouver"},
+  {id:34,group:"Groupe F",phase:"group",date:"2026-06-20",time:"18:00",home:"Japan",away:"TBD",stadium:"BMO Field, Toronto"},
+  {id:35,group:"Groupe F",phase:"group",date:"2026-06-24",time:"20:00",home:"Netherlands",away:"TBD",stadium:"Lincoln Financial, Philly"},
+  {id:36,group:"Groupe F",phase:"group",date:"2026-06-24",time:"20:00",home:"Japan",away:"Tunisia",stadium:"Lumen Field, Seattle"},
+  {id:37,group:"Groupe G",phase:"group",date:"2026-06-16",time:"18:00",home:"Belgium",away:"Egypt",stadium:"Mercedes-Benz, Atlanta"},
+  {id:38,group:"Groupe G",phase:"group",date:"2026-06-16",time:"21:00",home:"Iran",away:"New Zealand",stadium:"Estadio BBVA, Monterrey"},
+  {id:39,group:"Groupe G",phase:"group",date:"2026-06-20",time:"21:00",home:"Belgium",away:"Iran",stadium:"AT&T Stadium, Dallas"},
+  {id:40,group:"Groupe G",phase:"group",date:"2026-06-21",time:"15:00",home:"New Zealand",away:"Egypt",stadium:"SoFi Stadium, LA"},
+  {id:41,group:"Groupe G",phase:"group",date:"2026-06-24",time:"20:00",home:"Belgium",away:"New Zealand",stadium:"Gillette Stadium, Boston"},
+  {id:42,group:"Groupe G",phase:"group",date:"2026-06-24",time:"20:00",home:"Egypt",away:"Iran",stadium:"Estadio Akron, Guadalajara"},
+  {id:43,group:"Groupe H",phase:"group",date:"2026-06-17",time:"15:00",home:"Spain",away:"Cape Verde",stadium:"Hard Rock, Miami"},
+  {id:44,group:"Groupe H",phase:"group",date:"2026-06-17",time:"18:00",home:"Saudi Arabia",away:"Uruguay",stadium:"Levi's Stadium, SF"},
+  {id:45,group:"Groupe H",phase:"group",date:"2026-06-21",time:"18:00",home:"Spain",away:"Saudi Arabia",stadium:"Arrowhead, Kansas City"},
+  {id:46,group:"Groupe H",phase:"group",date:"2026-06-21",time:"21:00",home:"Uruguay",away:"Cape Verde",stadium:"NRG Stadium, Houston"},
+  {id:47,group:"Groupe H",phase:"group",date:"2026-06-25",time:"20:00",home:"Spain",away:"Uruguay",stadium:"MetLife, New York"},
+  {id:48,group:"Groupe H",phase:"group",date:"2026-06-25",time:"20:00",home:"Cape Verde",away:"Saudi Arabia",stadium:"BC Place, Vancouver"},
+  {id:49,group:"Groupe I",phase:"group",date:"2026-06-17",time:"21:00",home:"France",away:"Senegal",stadium:"BMO Field, Toronto"},
+  {id:50,group:"Groupe I",phase:"group",date:"2026-06-18",time:"15:00",home:"Norway",away:"TBD",stadium:"Mercedes-Benz, Atlanta"},
+  {id:51,group:"Groupe I",phase:"group",date:"2026-06-21",time:"21:00",home:"France",away:"Norway",stadium:"Lincoln Financial, Philly"},
+  {id:52,group:"Groupe I",phase:"group",date:"2026-06-22",time:"15:00",home:"Senegal",away:"TBD",stadium:"Estadio BBVA, Monterrey"},
+  {id:53,group:"Groupe I",phase:"group",date:"2026-06-25",time:"20:00",home:"France",away:"TBD",stadium:"AT&T Stadium, Dallas"},
+  {id:54,group:"Groupe I",phase:"group",date:"2026-06-25",time:"20:00",home:"Norway",away:"Senegal",stadium:"Lumen Field, Seattle"},
+  {id:55,group:"Groupe J",phase:"group",date:"2026-06-18",time:"18:00",home:"Argentina",away:"Algeria",stadium:"MetLife, New York"},
+  {id:56,group:"Groupe J",phase:"group",date:"2026-06-18",time:"21:00",home:"Austria",away:"Jordan",stadium:"Gillette Stadium, Boston"},
+  {id:57,group:"Groupe J",phase:"group",date:"2026-06-22",time:"18:00",home:"Argentina",away:"Austria",stadium:"SoFi Stadium, LA"},
+  {id:58,group:"Groupe J",phase:"group",date:"2026-06-22",time:"21:00",home:"Algeria",away:"Jordan",stadium:"Hard Rock, Miami"},
+  {id:59,group:"Groupe J",phase:"group",date:"2026-06-26",time:"20:00",home:"Argentina",away:"Jordan",stadium:"NRG Stadium, Houston"},
+  {id:60,group:"Groupe J",phase:"group",date:"2026-06-26",time:"20:00",home:"Algeria",away:"Austria",stadium:"Estadio Akron, Guadalajara"},
+  {id:61,group:"Groupe K",phase:"group",date:"2026-06-19",time:"15:00",home:"Portugal",away:"Colombia",stadium:"Arrowhead, Kansas City"},
+  {id:62,group:"Groupe K",phase:"group",date:"2026-06-19",time:"18:00",home:"Uzbekistan",away:"TBD",stadium:"BC Place, Vancouver"},
+  {id:63,group:"Groupe K",phase:"group",date:"2026-06-23",time:"15:00",home:"Portugal",away:"Uzbekistan",stadium:"BMO Field, Toronto"},
+  {id:64,group:"Groupe K",phase:"group",date:"2026-06-23",time:"18:00",home:"Colombia",away:"TBD",stadium:"Mercedes-Benz, Atlanta"},
+  {id:65,group:"Groupe K",phase:"group",date:"2026-06-27",time:"20:00",home:"Portugal",away:"TBD",stadium:"Lincoln Financial, Philly"},
+  {id:66,group:"Groupe K",phase:"group",date:"2026-06-27",time:"20:00",home:"Colombia",away:"Uzbekistan",stadium:"AT&T Stadium, Dallas"},
+  {id:67,group:"Groupe L",phase:"group",date:"2026-06-20",time:"15:00",home:"England",away:"Croatia",stadium:"Estadio Azteca, Mexico City"},
+  {id:68,group:"Groupe L",phase:"group",date:"2026-06-20",time:"18:00",home:"Ghana",away:"Panama",stadium:"Lumen Field, Seattle"},
+  {id:69,group:"Groupe L",phase:"group",date:"2026-06-24",time:"15:00",home:"England",away:"Ghana",stadium:"Arrowhead, Kansas City"},
+  {id:70,group:"Groupe L",phase:"group",date:"2026-06-24",time:"18:00",home:"Croatia",away:"Panama",stadium:"Hard Rock, Miami"},
+  {id:71,group:"Groupe L",phase:"group",date:"2026-06-28",time:"20:00",home:"England",away:"Panama",stadium:"MetLife, New York"},
+  {id:72,group:"Groupe L",phase:"group",date:"2026-06-28",time:"20:00",home:"Croatia",away:"Ghana",stadium:"SoFi Stadium, LA"},
+  {id:73,group:"32e de finale",phase:"r32",date:"2026-07-01",time:"21:00",home:"1A",away:"3C/D/E",stadium:"AT&T Stadium, Dallas"},
+  {id:74,group:"32e de finale",phase:"r32",date:"2026-07-01",time:"18:00",home:"1B",away:"3A/D/E",stadium:"Gillette Stadium, Boston"},
+  {id:75,group:"32e de finale",phase:"r32",date:"2026-07-02",time:"21:00",home:"1C",away:"3A/B/F",stadium:"MetLife, New York"},
+  {id:76,group:"32e de finale",phase:"r32",date:"2026-07-02",time:"18:00",home:"1D",away:"3G/H/I",stadium:"NRG Stadium, Houston"},
+  {id:77,group:"32e de finale",phase:"r32",date:"2026-07-03",time:"21:00",home:"1E",away:"3J/K/L",stadium:"SoFi Stadium, LA"},
+  {id:78,group:"32e de finale",phase:"r32",date:"2026-07-03",time:"18:00",home:"1F",away:"3A/B/C",stadium:"Levi's Stadium, SF"},
+  {id:79,group:"32e de finale",phase:"r32",date:"2026-07-04",time:"21:00",home:"1G",away:"3D/E/F",stadium:"Mercedes-Benz, Atlanta"},
+  {id:80,group:"32e de finale",phase:"r32",date:"2026-07-04",time:"18:00",home:"1H",away:"2I",stadium:"BC Place, Vancouver"},
+  {id:81,group:"32e de finale",phase:"r32",date:"2026-07-05",time:"21:00",home:"1I",away:"2H",stadium:"Estadio Azteca, Mexico City"},
+  {id:82,group:"32e de finale",phase:"r32",date:"2026-07-05",time:"18:00",home:"1J",away:"2K",stadium:"Hard Rock, Miami"},
+  {id:83,group:"32e de finale",phase:"r32",date:"2026-07-06",time:"21:00",home:"1K",away:"2J",stadium:"Arrowhead, Kansas City"},
+  {id:84,group:"32e de finale",phase:"r32",date:"2026-07-06",time:"18:00",home:"1L",away:"2G",stadium:"Lumen Field, Seattle"},
+  {id:85,group:"32e de finale",phase:"r32",date:"2026-07-07",time:"21:00",home:"2A",away:"2F",stadium:"BMO Field, Toronto"},
+  {id:86,group:"32e de finale",phase:"r32",date:"2026-07-07",time:"18:00",home:"2B",away:"2E",stadium:"AT&T Stadium, Dallas"},
+  {id:87,group:"32e de finale",phase:"r32",date:"2026-07-08",time:"21:00",home:"2C",away:"2L",stadium:"MetLife, New York"},
+  {id:88,group:"32e de finale",phase:"r32",date:"2026-07-08",time:"18:00",home:"2D",away:"2K",stadium:"Gillette Stadium, Boston"},
+  {id:89,group:"8e de finale",phase:"r16",date:"2026-07-11",time:"21:00",home:"W73",away:"W74",stadium:"AT&T Stadium, Dallas"},
+  {id:90,group:"8e de finale",phase:"r16",date:"2026-07-12",time:"18:00",home:"W75",away:"W76",stadium:"SoFi Stadium, LA"},
+  {id:91,group:"8e de finale",phase:"r16",date:"2026-07-12",time:"21:00",home:"W77",away:"W78",stadium:"MetLife, New York"},
+  {id:92,group:"8e de finale",phase:"r16",date:"2026-07-13",time:"18:00",home:"W79",away:"W80",stadium:"NRG Stadium, Houston"},
+  {id:93,group:"8e de finale",phase:"r16",date:"2026-07-13",time:"21:00",home:"W81",away:"W82",stadium:"Levi's Stadium, SF"},
+  {id:94,group:"8e de finale",phase:"r16",date:"2026-07-14",time:"18:00",home:"W83",away:"W84",stadium:"Mercedes-Benz, Atlanta"},
+  {id:95,group:"8e de finale",phase:"r16",date:"2026-07-14",time:"21:00",home:"W85",away:"W86",stadium:"BC Place, Vancouver"},
+  {id:96,group:"8e de finale",phase:"r16",date:"2026-07-15",time:"18:00",home:"W87",away:"W88",stadium:"Hard Rock, Miami"},
+  {id:97,group:"Quart de finale",phase:"qf",date:"2026-07-17",time:"21:00",home:"W89",away:"W90",stadium:"MetLife, New York"},
+  {id:98,group:"Quart de finale",phase:"qf",date:"2026-07-18",time:"18:00",home:"W91",away:"W92",stadium:"AT&T Stadium, Dallas"},
+  {id:99,group:"Quart de finale",phase:"qf",date:"2026-07-18",time:"21:00",home:"W93",away:"W94",stadium:"SoFi Stadium, LA"},
+  {id:100,group:"Quart de finale",phase:"qf",date:"2026-07-19",time:"18:00",home:"W95",away:"W96",stadium:"Levi's Stadium, SF"},
+  {id:101,group:"Demi-finale",phase:"sf",date:"2026-07-14",time:"21:00",home:"W97",away:"W98",stadium:"AT&T Stadium, Dallas"},
+  {id:102,group:"Demi-finale",phase:"sf",date:"2026-07-15",time:"21:00",home:"W99",away:"W100",stadium:"MetLife, New York"},
+  {id:103,group:"3e place",phase:"3rd",date:"2026-07-18",time:"21:00",home:"L101",away:"L102",stadium:"Hard Rock, Miami"},
+  {id:104,group:"🏆 FINALE",phase:"final",date:"2026-07-19",time:"21:00",home:"W101",away:"W102",stadium:"MetLife, New York"},
+];
+
+const PHASE_CONFIG = {
+  group:{label:"Phase de groupes",mult:1},
+  r32:{label:"⚡ 32e de finale",mult:1.5},
+  r16:{label:"🔥 8e de finale",mult:2},
+  qf:{label:"💥 Quart de finale",mult:2.5},
+  sf:{label:"🌟 Demi-finale",mult:3},
+  "3rd":{label:"🥉 3e place",mult:2},
+  final:{label:"🏆 FINALE",mult:4},
+};
+
+const AVATARS = ["⚽","🦁","🐯","🦊","🐺","🦅","🐆","🦈","🔥","⚡","🌟","🏆","🎯","🦉","🐻","🦋"];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
 function calcPoints(prono, score, phase) {
@@ -49,21 +182,13 @@ const inputStyle = {
 };
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────
-function AuthScreen({ users, onLogin, onSaveUsers, onAdmin }) {
+function AuthScreen({ users, onLogin, onSaveUsers }) {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [avatar, setAvatar] = useState("⚽");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tapCount, setTapCount] = useState(0);
-
-  // Triple-tap sur le logo pour accéder à l'admin
-  const handleLogoTap = () => {
-    const next = tapCount + 1;
-    setTapCount(next);
-    if (next >= 5) { setTapCount(0); onAdmin(); }
-  };
 
   const handle = async () => {
     if (!username.trim() || !password.trim()) { setError("Remplis tous les champs"); return; }
@@ -89,7 +214,7 @@ function AuthScreen({ users, onLogin, onSaveUsers, onAdmin }) {
   return (
     <div style={{ background:"linear-gradient(180deg,#080c18 0%,#0f1629 100%)", minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", padding:"48px 24px 24px", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
       <div style={{ textAlign:"center", marginBottom:36 }}>
-        <div style={{ fontSize:64, marginBottom:4, cursor:"pointer", userSelect:"none" }} onClick={handleLogoTap}>⚽</div>
+        <div style={{ fontSize:64, marginBottom:4 }}>⚽</div>
         <div style={{ fontSize:11, color:"#facc15", letterSpacing:3, fontWeight:800, textTransform:"uppercase" }}>Coupe du Monde 2026</div>
         <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos des Potes</div>
         <div style={{ fontSize:12, color:"#475569", marginTop:4 }}>🇺🇸 USA · 🇲🇽 Mexique · 🇨🇦 Canada</div>
@@ -223,7 +348,7 @@ function MatchCard({ match, prono, onSave }) {
   );
 }
 
-// ─── ONGLET MATCHS ────────────────────────────────────────────────────────
+// ─── TABS ─────────────────────────────────────────────────────────────────
 function MatchsTab({ matches, pronos, onSave }) {
   const [filter, setFilter] = useState("open");
   const [search, setSearch] = useState("");
@@ -282,8 +407,7 @@ function MatchsTab({ matches, pronos, onSave }) {
   );
 }
 
-// ─── ONGLET CLASSEMENT ────────────────────────────────────────────────────
-function ClassementTab({ board, currentUser }) {
+function ClassementTab({ board, currentUser, matches }) {
   return (
     <div style={{ padding:"14px 14px 0" }}>
       {board.length >= 3 && (
@@ -349,8 +473,7 @@ function ClassementTab({ board, currentUser }) {
   );
 }
 
-// ─── ONGLET PROFIL ────────────────────────────────────────────────────────
-function ProfilTab({ user, stats, rank, total, pronos, matches, onLogout, onAdmin }) {
+function ProfilTab({ user, stats, rank, total, pronos, matches, onLogout }) {
   const played = matches.filter(m => m.score);
   const participation = played.length > 0 ? Math.round((Object.keys(pronos).length / played.length) * 100) : 0;
   const recentResults = matches.filter(m => m.score && pronos[m.id]).slice(-6).reverse();
@@ -389,14 +512,10 @@ function ProfilTab({ user, stats, rank, total, pronos, matches, onLogout, onAdmi
       <button onClick={onLogout} style={{ width:"100%", marginTop:20, background:"rgba(248,113,113,0.08)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:12, padding:13, fontSize:13, color:"#f87171", cursor:"pointer", fontWeight:700 }}>
         Changer de joueur
       </button>
-      <button onClick={onAdmin} style={{ width:"100%", marginTop:8, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:12, padding:13, fontSize:12, color:"#334155", cursor:"pointer", fontWeight:600 }}>
-        🛠️ Accès Admin
-      </button>
     </div>
   );
 }
 
-// ─── NAV ──────────────────────────────────────────────────────────────────
 function BottomNav({ tab, setTab }) {
   return (
     <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"rgba(8,12,24,0.97)", backdropFilter:"blur(20px)", borderTop:"1px solid rgba(250,204,21,0.1)", display:"flex", padding:"7px 0 14px" }}>
@@ -414,7 +533,6 @@ function BottomNav({ tab, setTab }) {
 // ─── APP PRINCIPALE ───────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState("matchs");
-  const [showAdmin, setShowAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("cdm_user")); } catch { return null; }
   });
@@ -424,20 +542,24 @@ export default function App() {
   const [scores, setScores] = useState({});
   const [loading, setLoading] = useState(true);
 
+  // Charger les users depuis Firebase au démarrage
   useEffect(() => {
     getUsers().then(u => { setUsers(u); setLoading(false); });
   }, []);
 
+  // Charger mes pronos quand on se connecte
   useEffect(() => {
     if (!currentUser) return;
     getPronos(currentUser.username).then(setMyPronos);
   }, [currentUser]);
 
+  // Écouter les scores en temps réel
   useEffect(() => {
     const unsub = subscribeToScores(setScores);
     return unsub;
   }, []);
 
+  // Écouter tous les pronos en temps réel (pour le classement)
   useEffect(() => {
     const unsub = subscribeToPronos(setPronos);
     return unsub;
@@ -463,12 +585,14 @@ export default function App() {
     await saveProno(currentUser.username, matchId, prono);
   }, [currentUser]);
 
+  // Construire les matchs avec scores et statuts
   const matches = CDM_MATCHES.map(m => ({
     ...m,
     score: scores[m.id] ? scores[m.id] : null,
     status: getStatus(m, scores),
   }));
 
+  // Calcul du classement
   const leaderboard = Object.entries(users).map(([username, userData]) => {
     const userPronos = pronos[username] || {};
     let total = 0, exact = 0, bon = 0, bonne = 0;
@@ -487,8 +611,6 @@ export default function App() {
     return { username, total, exact, bon, bonne, avatar: userData.avatar };
   }).sort((a, b) => b.total - a.total);
 
-  if (showAdmin) return <AdminPage onBack={() => setShowAdmin(false)} />;
-
   if (loading) {
     return (
       <div style={{ background:"#080c18", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif" }}>
@@ -501,7 +623,7 @@ export default function App() {
   }
 
   if (!currentUser) {
-    return <AuthScreen users={users} onLogin={handleLogin} onSaveUsers={handleSaveUsers} onAdmin={() => setShowAdmin(true)} />;
+    return <AuthScreen users={users} onLogin={handleLogin} onSaveUsers={handleSaveUsers} />;
   }
 
   const myRank = leaderboard.findIndex(u => u.username === currentUser.username) + 1;
@@ -509,6 +631,7 @@ export default function App() {
 
   return (
     <div style={{ background:"#080c18", minHeight:"100vh", fontFamily:"'Segoe UI',system-ui,sans-serif", color:"#f1f5f9", maxWidth:480, margin:"0 auto" }}>
+      {/* Header */}
       <div style={{ background:"linear-gradient(135deg,#080c18 0%,#111827 100%)", borderBottom:"1px solid rgba(250,204,21,0.15)", padding:"14px 16px 12px", position:"sticky", top:0, zIndex:100, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontSize:10, color:"#facc15", letterSpacing:2, fontWeight:800, textTransform:"uppercase" }}>⚽ CDM 2026 Pronos</div>
@@ -518,14 +641,14 @@ export default function App() {
           </div>
         </div>
         <div style={{ background:"rgba(74,222,128,0.1)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:20, padding:"6px 14px", fontSize:11, color:"#4ade80", fontWeight:700 }}>
-          🟢 En direct
+          🔴 En direct
         </div>
       </div>
 
       <div style={{ paddingBottom:72 }}>
         {tab==="matchs" && <MatchsTab matches={matches} pronos={myPronos} onSave={handleSaveProno} />}
         {tab==="classement" && <ClassementTab board={leaderboard} currentUser={currentUser.username} matches={matches} />}
-        {tab==="profil" && <ProfilTab user={currentUser} stats={myStats} rank={myRank} total={leaderboard.length} pronos={myPronos} matches={matches} onLogout={handleLogout} onAdmin={() => setShowAdmin(true)} />}
+        {tab==="profil" && <ProfilTab user={currentUser} stats={myStats} rank={myRank} total={leaderboard.length} pronos={myPronos} matches={matches} onLogout={handleLogout} />}
       </div>
       <BottomNav tab={tab} setTab={setTab} />
     </div>
