@@ -1,0 +1,88 @@
+/**
+ * /api/scores.js — Proxy Vercel vers football-data.org
+ *
+ * Appel depuis le front : fetch('/api/scores')
+ * Cette fonction tourne côté serveur Vercel, donc :
+ *  - Ta clé API n'est JAMAIS exposée au navigateur
+ *  - Le CORS est résolu (c'est ton propre domaine qui appelle)
+ *
+ * Configure ta clé dans Vercel Dashboard > Settings > Environment Variables :
+ *   FOOTBALL_DATA_KEY = ta_clé_ici
+ */
+
+export default async function handler(req, res) {
+  // CORS pour le dev local
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+
+  const API_KEY = process.env.FOOTBALL_DATA_KEY;
+  if (!API_KEY) {
+    return res.status(500).json({ error: "Clé API manquante. Ajoute FOOTBALL_DATA_KEY dans les variables d'environnement Vercel." });
+  }
+
+  try {
+    // Récupère tous les matchs de la Coupe du Monde 2026
+    // Code "WC" = FIFA World Cup sur football-data.org
+    const response = await fetch(
+      "https://api.football-data.org/v4/competitions/WC/matches",
+      {
+        headers: {
+          "X-Auth-Token": API_KEY,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ error: `Erreur API: ${response.status}`, detail: text });
+    }
+
+    const data = await response.json();
+
+    // Transformer la réponse football-data.org en format utilisable par l'app
+    // Structure football-data : match.score.fullTime = { home: N, away: N }
+    // Structure app : scores[matchId] = [homeGoals, awayGoals]
+    const scores = {};
+    const matchInfo = {};
+
+    data.matches?.forEach((match) => {
+      // football-data.org utilise ses propres IDs — on mappe via les équipes + date
+      // On retourne toute l'info brute pour que l'app puisse faire le mapping
+      const key = `${match.homeTeam?.shortName}_${match.awayTeam?.shortName}_${match.utcDate?.slice(0, 10)}`;
+
+      matchInfo[key] = {
+        id: match.id,
+        utcDate: match.utcDate,
+        status: match.status, // SCHEDULED, IN_PLAY, PAUSED, FINISHED, SUSPENDED, POSTPONED, CANCELLED, AWARDED
+        homeTeam: match.homeTeam?.name,
+        homeTeamShort: match.homeTeam?.shortName,
+        awayTeam: match.awayTeam?.name,
+        awayTeamShort: match.awayTeam?.shortName,
+        stage: match.stage, // GROUP_STAGE, LAST_32, LAST_16, QUARTER_FINALS, SEMI_FINALS, FINAL
+        group: match.group, // "GROUP_A", etc.
+        matchday: match.matchday,
+        minute: match.minute || null,
+        // Score temps réglementaire
+        scoreHome: match.score?.fullTime?.home ?? null,
+        scoreAway: match.score?.fullTime?.away ?? null,
+        // Score mi-temps
+        htHome: match.score?.halfTime?.home ?? null,
+        htAway: match.score?.halfTime?.away ?? null,
+      };
+    });
+
+    // Cache 60 secondes pour les matchs en cours, 5 min sinon
+    const hasLive = data.matches?.some(m => m.status === "IN_PLAY" || m.status === "PAUSED");
+    res.setHeader("Cache-Control", hasLive ? "s-maxage=60" : "s-maxage=300");
+
+    return res.status(200).json({
+      updated: new Date().toISOString(),
+      hasLive,
+      matches: matchInfo,
+    });
+
+  } catch (err) {
+    console.error("Erreur proxy football-data:", err);
+    return res.status(500).json({ error: err.message });
+  }
+}
