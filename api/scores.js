@@ -98,7 +98,11 @@ export default async function handler(req, res) {
       if (!isNaN(h) && !isNaN(a)) scores[id] = [h, a];
     });
 
-    res.status(200).json({ scores, updatedAt: new Date().toISOString() });
+    res.status(200).json({
+  totalGames: Array.isArray(games) ? games.length : (games.games || []).length,
+  firstGames: (Array.isArray(games) ? games : games.games || []).slice(0, 5),
+  scores
+});
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message, scores: {} });
