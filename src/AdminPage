@@ -1,0 +1,226 @@
+import { useState, useEffect } from "react";
+import { setScore, deleteScore, subscribeToScores } from "./firebase";
+import { CDM_MATCHES, FLAGS, PHASE_CONFIG } from "./matches";
+
+// ─── MOT DE PASSE ADMIN ───────────────────────────────────────────────────
+// Change ce mot de passe ici (et dans README)
+const ADMIN_PASSWORD = "cdm2026admin";
+
+const PHASE_ORDER = ["group","r32","r16","qf","sf","3rd","final"];
+
+export default function AdminPage({ onBack }) {
+  const [authed, setAuthed] = useState(false);
+  const [pwd, setPwd] = useState("");
+  const [scores, setScores] = useState({});
+  const [editing, setEditing] = useState({});
+  const [saved, setSaved] = useState({});
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState("");
+  const [filterPhase, setFilterPhase] = useState("group");
+
+  useEffect(() => {
+    const unsub = subscribeToScores(setScores);
+    return unsub;
+  }, []);
+
+  const handleLogin = () => {
+    if (pwd === ADMIN_PASSWORD) setAuthed(true);
+    else alert("Mot de passe incorrect");
+  };
+
+  const handleSave = async (matchId) => {
+    const e = editing[matchId];
+    if (e === undefined || e.home === "" || e.away === "") return;
+    const h = parseInt(e.home), a = parseInt(e.away);
+    if (isNaN(h) || isNaN(a) || h < 0 || a < 0) return;
+    await setScore(matchId, h, a);
+    setSaved(prev => ({ ...prev, [matchId]: true }));
+    setTimeout(() => setSaved(prev => ({ ...prev, [matchId]: false })), 2000);
+    setEditing(prev => { const n = { ...prev }; delete n[matchId]; return n; });
+  };
+
+  const handleDelete = async (matchId) => {
+    if (!window.confirm("Supprimer ce score ?")) return;
+    await deleteScore(matchId);
+  };
+
+  // Sync manuelle depuis l'API worldcup2026 (GitHub open-source, sans clé)
+  const handleAutoSync = async () => {
+    setSyncing(true);
+    setSyncMsg("Récupération des scores...");
+    try {
+      const res = await fetch("https://worldcup2026-production.up.railway.app/matches");
+      if (!res.ok) throw new Error("Erreur API " + res.status);
+      const matches = await res.json();
+      let count = 0;
+      for (const m of matches) {
+        // L'API retourne status "FT" pour match terminé
+        if ((m.status === "FT" || m.status === "FINISHED") &&
+            m.score?.home !== undefined && m.score?.away !== undefined) {
+          // On cherche le match correspondant dans notre liste par les noms d'équipes
+          const local = CDM_MATCHES.find(lm =>
+            (lm.home.toLowerCase().includes(m.home_team?.toLowerCase() || "") ||
+             (m.home_team || "").toLowerCase().includes(lm.home.toLowerCase())) &&
+            (lm.away.toLowerCase().includes(m.away_team?.toLowerCase() || "") ||
+             (m.away_team || "").toLowerCase().includes(lm.away.toLowerCase()))
+          );
+          if (local) {
+            await setScore(local.id, m.score.home, m.score.away);
+            count++;
+          }
+        }
+      }
+      setSyncMsg(`✅ ${count} score(s) mis à jour automatiquement !`);
+    } catch (err) {
+      setSyncMsg(`⚠️ API indisponible. Entrez les scores manuellement ci-dessous.\n(${err.message})`);
+    }
+    setSyncing(false);
+    setTimeout(() => setSyncMsg(""), 6000);
+  };
+
+  const matchesByPhase = CDM_MATCHES.filter(m => m.phase === filterPhase);
+
+  if (!authed) {
+    return (
+      <div style={{ background:"#080c18", minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, fontFamily:"'Segoe UI',sans-serif" }}>
+        <div style={{ fontSize:36, marginBottom:8 }}>🔐</div>
+        <div style={{ fontSize:20, fontWeight:900, color:"#fff", marginBottom:4 }}>Page Admin</div>
+        <div style={{ fontSize:12, color:"#475569", marginBottom:28 }}>CDM 2026 Pronos</div>
+        <input
+          type="password"
+          value={pwd}
+          onChange={e => setPwd(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleLogin()}
+          placeholder="Mot de passe admin"
+          style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)", borderRadius:12, padding:"13px 16px", fontSize:15, color:"#fff", outline:"none", width:260, boxSizing:"border-box", marginBottom:12 }}
+        />
+        <button onClick={handleLogin} style={{ background:"linear-gradient(135deg,#facc15,#f59e0b)", border:"none", borderRadius:12, padding:"12px 32px", fontSize:15, fontWeight:800, color:"#080c18", cursor:"pointer", width:260 }}>
+          Entrer →
+        </button>
+        <button onClick={onBack} style={{ marginTop:14, background:"none", border:"none", color:"#475569", fontSize:13, cursor:"pointer" }}>
+          ← Retour à l'appli
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background:"#080c18", minHeight:"100vh", fontFamily:"'Segoe UI',sans-serif", color:"#f1f5f9", maxWidth:480, margin:"0 auto" }}>
+      {/* Header Admin */}
+      <div style={{ background:"rgba(248,113,113,0.1)", borderBottom:"1px solid rgba(248,113,113,0.2)", padding:"14px 16px 12px", position:"sticky", top:0, zIndex:100, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div>
+          <div style={{ fontSize:10, color:"#f87171", letterSpacing:2, fontWeight:800, textTransform:"uppercase" }}>🛠️ Mode Admin</div>
+          <div style={{ fontSize:15, fontWeight:800, color:"#fff" }}>Gestion des scores</div>
+        </div>
+        <button onClick={onBack} style={{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:10, padding:"7px 14px", fontSize:12, color:"#94a3b8", cursor:"pointer" }}>
+          ← Appli
+        </button>
+      </div>
+
+      <div style={{ padding:"14px 14px 80px" }}>
+        {/* Bouton Sync Auto */}
+        <div style={{ background:"rgba(74,222,128,0.07)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:14, padding:14, marginBottom:16 }}>
+          <div style={{ fontSize:12, color:"#4ade80", fontWeight:800, marginBottom:6 }}>🤖 Synchronisation automatique</div>
+          <div style={{ fontSize:11, color:"#475569", marginBottom:10 }}>Récupère les scores terminés depuis l'API gratuite worldcup2026 (GitHub)</div>
+          <button
+            onClick={handleAutoSync}
+            disabled={syncing}
+            style={{ width:"100%", background: syncing ? "#1e293b" : "linear-gradient(135deg,#4ade80,#22c55e)", border:"none", borderRadius:10, padding:"11px", fontSize:13, fontWeight:800, color: syncing ? "#475569" : "#080c18", cursor: syncing ? "default" : "pointer" }}
+          >
+            {syncing ? "⏳ Synchronisation en cours..." : "🔄 Lancer la sync maintenant"}
+          </button>
+          {syncMsg && (
+            <div style={{ marginTop:10, fontSize:12, color: syncMsg.startsWith("✅") ? "#4ade80" : "#facc15", whiteSpace:"pre-line", fontWeight:600 }}>
+              {syncMsg}
+            </div>
+          )}
+        </div>
+
+        {/* Filtres par phase */}
+        <div style={{ fontSize:10, color:"#475569", fontWeight:800, letterSpacing:2, textTransform:"uppercase", marginBottom:8 }}>
+          Saisie manuelle des scores
+        </div>
+        <div style={{ display:"flex", gap:5, marginBottom:14, flexWrap:"wrap" }}>
+          {PHASE_ORDER.map(p => (
+            <button key={p} onClick={() => setFilterPhase(p)} style={{
+              padding:"6px 10px", borderRadius:8, fontSize:10, fontWeight:700,
+              border: filterPhase===p ? "1px solid #facc15" : "1px solid rgba(255,255,255,0.08)",
+              background: filterPhase===p ? "rgba(250,204,21,0.12)" : "rgba(255,255,255,0.02)",
+              color: filterPhase===p ? "#facc15" : "#475569", cursor:"pointer"
+            }}>{PHASE_CONFIG[p]?.label || p}</button>
+          ))}
+        </div>
+
+        {/* Liste des matchs */}
+        {matchesByPhase.map(match => {
+          const existingScore = scores[match.id];
+          const e = editing[match.id] || {};
+          const homeVal = e.home !== undefined ? e.home : (existingScore ? existingScore[0] : "");
+          const awayVal = e.away !== undefined ? e.away : (existingScore ? existingScore[1] : "");
+          const f1 = FLAGS[match.home] || "🏳️";
+          const f2 = FLAGS[match.away] || "🏳️";
+          const isSaved = saved[match.id];
+
+          return (
+            <div key={match.id} style={{ background:"rgba(255,255,255,0.025)", border:`1px solid ${existingScore ? "rgba(96,165,250,0.3)" : "rgba(255,255,255,0.06)"}`, borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
+              <div style={{ fontSize:10, color:"#334155", marginBottom:6 }}>
+                #{match.id} · {match.group} · {match.date} {match.time}
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                <div style={{ flex:1, textAlign:"right" }}>
+                  <span style={{ fontSize:18 }}>{f1}</span>
+                  <div style={{ fontSize:11, color:"#94a3b8", fontWeight:700 }}>{match.home}</div>
+                </div>
+                {existingScore && (
+                  <div style={{ background:"rgba(96,165,250,0.15)", borderRadius:8, padding:"4px 12px", fontSize:18, fontWeight:900, color:"#60a5fa" }}>
+                    {existingScore[0]} – {existingScore[1]}
+                  </div>
+                )}
+                {!existingScore && (
+                  <div style={{ fontSize:11, color:"#1e293b", fontWeight:700 }}>VS</div>
+                )}
+                <div style={{ flex:1, textAlign:"left" }}>
+                  <span style={{ fontSize:18 }}>{f2}</span>
+                  <div style={{ fontSize:11, color:"#94a3b8", fontWeight:700 }}>{match.away}</div>
+                </div>
+              </div>
+
+              {/* Saisie score */}
+              <div style={{ display:"flex", alignItems:"center", gap:8, justifyContent:"center" }}>
+                <input
+                  value={homeVal}
+                  onChange={e => setEditing(prev => ({ ...prev, [match.id]: { ...prev[match.id], home: e.target.value } }))}
+                  placeholder="0"
+                  type="number" min="0" max="20"
+                  style={{ width:52, textAlign:"center", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(250,204,21,0.35)", borderRadius:7, padding:"8px 4px", color:"#fff", fontSize:18, fontWeight:800, outline:"none" }}
+                />
+                <span style={{ color:"#facc15", fontWeight:900, fontSize:16 }}>–</span>
+                <input
+                  value={awayVal}
+                  onChange={e => setEditing(prev => ({ ...prev, [match.id]: { ...prev[match.id], away: e.target.value } }))}
+                  placeholder="0"
+                  type="number" min="0" max="20"
+                  style={{ width:52, textAlign:"center", background:"rgba(255,255,255,0.08)", border:"1px solid rgba(250,204,21,0.35)", borderRadius:7, padding:"8px 4px", color:"#fff", fontSize:18, fontWeight:800, outline:"none" }}
+                />
+                <button
+                  onClick={() => handleSave(match.id)}
+                  style={{ background: isSaved ? "rgba(74,222,128,0.2)" : "linear-gradient(135deg,#facc15,#f59e0b)", border: isSaved ? "1px solid #4ade80" : "none", borderRadius:7, padding:"8px 14px", fontSize:12, fontWeight:800, color: isSaved ? "#4ade80" : "#080c18", cursor:"pointer" }}
+                >
+                  {isSaved ? "✓ Sauvé" : "💾 Sauver"}
+                </button>
+                {existingScore && (
+                  <button
+                    onClick={() => handleDelete(match.id)}
+                    style={{ background:"rgba(248,113,113,0.1)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:7, padding:"8px 10px", fontSize:12, color:"#f87171", cursor:"pointer" }}
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
