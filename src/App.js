@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { getUsers, saveUsers, getPronos, saveProno, subscribeToScores, subscribeToPronos } from "./firebase";
 
@@ -627,3 +628,30 @@ export default function App() {
       </div>
     );
   }
+
+  if (!currentUser) return <AuthScreen users={users} onLogin={handleLogin} onSaveUsers={handleSaveUsers} />;
+
+  const myRank = leaderboard.findIndex(u => u.username === currentUser.username) + 1;
+  const myStats = leaderboard.find(u => u.username === currentUser.username) || {};
+
+  return (
+    <div style={{ background:"#080c18", minHeight:"100vh", fontFamily:"'Segoe UI',system-ui,sans-serif", color:"#f1f5f9", maxWidth:480, margin:"0 auto" }}>
+      <div style={{ background:"linear-gradient(135deg,#080c18 0%,#111827 100%)", borderBottom:"1px solid rgba(250,204,21,0.15)", padding:"14px 16px 12px", position:"sticky", top:0, zIndex:100, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div>
+          <div style={{ fontSize:10, color:"#facc15", letterSpacing:2, fontWeight:800, textTransform:"uppercase" }}>⚽ CDM 2026 Pronos</div>
+          <div style={{ fontSize:16, fontWeight:800, color:"#fff" }}>
+            {currentUser.avatar} {currentUser.username}
+            {myRank > 0 && <span style={{ fontSize:12, color:"#facc15", marginLeft:8 }}>#{myRank}</span>}
+          </div>
+        </div>
+        <div style={{ background:"rgba(74,222,128,0.1)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:20, padding:"6px 14px", fontSize:11, color:"#4ade80", fontWeight:700 }}>🔴 En direct</div>
+      </div>
+      <div style={{ paddingBottom:72 }}>
+        {tab==="matchs" && <MatchsTab matches={matches} pronos={myPronos} onSave={handleSaveProno} />}
+        {tab==="classement" && <ClassementTab board={leaderboard} currentUser={currentUser.username} />}
+        {tab==="profil" && <ProfilTab user={currentUser} stats={myStats} rank={myRank} total={leaderboard.length} pronos={myPronos} matches={matches} onLogout={handleLogout} />}
+      </div>
+      <BottomNav tab={tab} setTab={setTab} />
+    </div>
+  );
+}
