@@ -1,146 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { getUsers, saveUsers, getPronos, saveProno, subscribeToScores, subscribeToPronos, saveScoresToFirebase } from "./firebase";
-
-// ─── FLAGS ────────────────────────────────────────────────────────────────
-const FLAGS = {
-  "Mexico":"🇲🇽","South Africa":"🇿🇦","South Korea":"🇰🇷","Czech Republic":"🇨🇿",
-  "Canada":"🇨🇦","Bosnia and Herzegovina":"🇧🇦","Qatar":"🇶🇦","Switzerland":"🇨🇭",
-  "Brazil":"🇧🇷","Morocco":"🇲🇦","Haiti":"🇭🇹","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-  "USA":"🇺🇸","Paraguay":"🇵🇾","Australia":"🇦🇺","Turkey":"🇹🇷",
-  "Germany":"🇩🇪","Curaçao":"🇨🇼","Ivory Coast":"🇨🇮","Ecuador":"🇪🇨",
-  "Netherlands":"🇳🇱","Japan":"🇯🇵","Sweden":"🇸🇪","Tunisia":"🇹🇳",
-  "Belgium":"🇧🇪","Egypt":"🇪🇬","Iran":"🇮🇷","New Zealand":"🇳🇿",
-  "Spain":"🇪🇸","Cape Verde":"🇨🇻","Saudi Arabia":"🇸🇦","Uruguay":"🇺🇾",
-  "France":"🇫🇷","Senegal":"🇸🇳","Norway":"🇳🇴","Argentina":"🇦🇷",
-  "Algeria":"🇩🇿","Austria":"🇦🇹","Jordan":"🇯🇴","Portugal":"🇵🇹",
-  "DR Congo":"🇨🇩","Colombia":"🇨🇴","Uzbekistan":"🇺🇿","England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-  "Croatia":"🇭🇷","Ghana":"🇬🇭","Panama":"🇵🇦","Kosovo":"🇽🇰",
-  // Noms alternatifs utilisés par football-data.org
-  "United States":"🇺🇸","Côte d'Ivoire":"🇨🇮","Republic of Ireland":"🇮🇪",
-  "Korea Republic":"🇰🇷","Bosnia & Herzegovina":"🇧🇦","Curaçao":"🇨🇼",
-};
-
-// ─── LISTE DES 104 MATCHS CDM 2026 ───────────────────────────────────────
-// Clé de mapping : home_away_date pour relier aux données football-data.org
-const CDM_MATCHES = [
-  {id:1,group:"Groupe A",phase:"group",date:"2026-06-11",time:"21:00",home:"Mexico",away:"South Africa",homeShort:"MEX",awayShort:"RSA",stadium:"Azteca, Mexico City"},
-  {id:2,group:"Groupe A",phase:"group",date:"2026-06-12",time:"18:00",home:"South Korea",away:"Switzerland",homeShort:"KOR",awayShort:"SUI",stadium:"SoFi Stadium, LA"},
-  {id:3,group:"Groupe A",phase:"group",date:"2026-06-15",time:"21:00",home:"Mexico",away:"South Korea",homeShort:"MEX",awayShort:"KOR",stadium:"Levi's Stadium, SF"},
-  {id:4,group:"Groupe A",phase:"group",date:"2026-06-16",time:"18:00",home:"Switzerland",away:"South Africa",homeShort:"SUI",awayShort:"RSA",stadium:"Gillette Stadium, Boston"},
-  {id:5,group:"Groupe A",phase:"group",date:"2026-06-19",time:"20:00",home:"Mexico",away:"Switzerland",homeShort:"MEX",awayShort:"SUI",stadium:"Arrowhead, Kansas City"},
-  {id:6,group:"Groupe A",phase:"group",date:"2026-06-19",time:"20:00",home:"South Africa",away:"South Korea",homeShort:"RSA",awayShort:"KOR",stadium:"NRG Stadium, Houston"},
-  {id:7,group:"Groupe B",phase:"group",date:"2026-06-12",time:"21:00",home:"Canada",away:"Switzerland",homeShort:"CAN",awayShort:"SUI",stadium:"BC Place, Vancouver"},
-  {id:8,group:"Groupe B",phase:"group",date:"2026-06-13",time:"18:00",home:"Qatar",away:"Scotland",homeShort:"QAT",awayShort:"SCO",stadium:"Lumen Field, Seattle"},
-  {id:9,group:"Groupe B",phase:"group",date:"2026-06-16",time:"21:00",home:"Canada",away:"Qatar",homeShort:"CAN",awayShort:"QAT",stadium:"BMO Field, Toronto"},
-  {id:10,group:"Groupe B",phase:"group",date:"2026-06-17",time:"18:00",home:"Switzerland",away:"Scotland",homeShort:"SUI",awayShort:"SCO",stadium:"Lincoln Financial, Philly"},
-  {id:11,group:"Groupe B",phase:"group",date:"2026-06-20",time:"20:00",home:"Canada",away:"Scotland",homeShort:"CAN",awayShort:"SCO",stadium:"Hard Rock, Miami"},
-  {id:12,group:"Groupe B",phase:"group",date:"2026-06-20",time:"20:00",home:"Qatar",away:"Switzerland",homeShort:"QAT",awayShort:"SUI",stadium:"AT&T Stadium, Dallas"},
-  {id:13,group:"Groupe C",phase:"group",date:"2026-06-13",time:"21:00",home:"Brazil",away:"Morocco",homeShort:"BRA",awayShort:"MAR",stadium:"Mercedes-Benz, Atlanta"},
-  {id:14,group:"Groupe C",phase:"group",date:"2026-06-14",time:"15:00",home:"Haiti",away:"Scotland",homeShort:"HAI",awayShort:"SCO",stadium:"SoFi Stadium, LA"},
-  {id:15,group:"Groupe C",phase:"group",date:"2026-06-17",time:"21:00",home:"Brazil",away:"Haiti",homeShort:"BRA",awayShort:"HAI",stadium:"Levi's Stadium, SF"},
-  {id:16,group:"Groupe C",phase:"group",date:"2026-06-18",time:"15:00",home:"Morocco",away:"Scotland",homeShort:"MAR",awayShort:"SCO",stadium:"Hard Rock, Miami"},
-  {id:17,group:"Groupe C",phase:"group",date:"2026-06-21",time:"20:00",home:"Brazil",away:"Scotland",homeShort:"BRA",awayShort:"SCO",stadium:"Lincoln Financial, Philly"},
-  {id:18,group:"Groupe C",phase:"group",date:"2026-06-21",time:"20:00",home:"Morocco",away:"Haiti",homeShort:"MAR",awayShort:"HAI",stadium:"Gillette Stadium, Boston"},
-  {id:19,group:"Groupe D",phase:"group",date:"2026-06-14",time:"18:00",home:"USA",away:"Paraguay",homeShort:"USA",awayShort:"PAR",stadium:"MetLife, New York"},
-  {id:20,group:"Groupe D",phase:"group",date:"2026-06-14",time:"21:00",home:"Australia",away:"TBD",homeShort:"AUS",awayShort:"TBD",stadium:"Lumen Field, Seattle"},
-  {id:21,group:"Groupe D",phase:"group",date:"2026-06-18",time:"18:00",home:"USA",away:"Australia",homeShort:"USA",awayShort:"AUS",stadium:"Arrowhead, Kansas City"},
-  {id:22,group:"Groupe D",phase:"group",date:"2026-06-18",time:"21:00",home:"Paraguay",away:"TBD",homeShort:"PAR",awayShort:"TBD",stadium:"NRG Stadium, Houston"},
-  {id:23,group:"Groupe D",phase:"group",date:"2026-06-22",time:"20:00",home:"USA",away:"TBD",homeShort:"USA",awayShort:"TBD",stadium:"AT&T Stadium, Dallas"},
-  {id:24,group:"Groupe D",phase:"group",date:"2026-06-22",time:"20:00",home:"Paraguay",away:"Australia",homeShort:"PAR",awayShort:"AUS",stadium:"Mercedes-Benz, Atlanta"},
-  {id:25,group:"Groupe E",phase:"group",date:"2026-06-15",time:"15:00",home:"Germany",away:"Curaçao",homeShort:"GER",awayShort:"CUW",stadium:"Levi's Stadium, SF"},
-  {id:26,group:"Groupe E",phase:"group",date:"2026-06-15",time:"18:00",home:"Ivory Coast",away:"Ecuador",homeShort:"CIV",awayShort:"ECU",stadium:"SoFi Stadium, LA"},
-  {id:27,group:"Groupe E",phase:"group",date:"2026-06-19",time:"15:00",home:"Germany",away:"Ivory Coast",homeShort:"GER",awayShort:"CIV",stadium:"Arrowhead, Kansas City"},
-  {id:28,group:"Groupe E",phase:"group",date:"2026-06-19",time:"18:00",home:"Ecuador",away:"Curaçao",homeShort:"ECU",awayShort:"CUW",stadium:"Hard Rock, Miami"},
-  {id:29,group:"Groupe E",phase:"group",date:"2026-06-23",time:"20:00",home:"Germany",away:"Ecuador",homeShort:"GER",awayShort:"ECU",stadium:"AT&T Stadium, Dallas"},
-  {id:30,group:"Groupe E",phase:"group",date:"2026-06-23",time:"20:00",home:"Curaçao",away:"Ivory Coast",homeShort:"CUW",awayShort:"CIV",stadium:"MetLife, New York"},
-  {id:31,group:"Groupe F",phase:"group",date:"2026-06-15",time:"21:00",home:"Netherlands",away:"Japan",homeShort:"NED",awayShort:"JPN",stadium:"NRG Stadium, Houston"},
-  {id:32,group:"Groupe F",phase:"group",date:"2026-06-16",time:"15:00",home:"Tunisia",away:"TBD",homeShort:"TUN",awayShort:"TBD",stadium:"Gillette Stadium, Boston"},
-  {id:33,group:"Groupe F",phase:"group",date:"2026-06-20",time:"15:00",home:"Netherlands",away:"Tunisia",homeShort:"NED",awayShort:"TUN",stadium:"BC Place, Vancouver"},
-  {id:34,group:"Groupe F",phase:"group",date:"2026-06-20",time:"18:00",home:"Japan",away:"TBD",homeShort:"JPN",awayShort:"TBD",stadium:"BMO Field, Toronto"},
-  {id:35,group:"Groupe F",phase:"group",date:"2026-06-24",time:"20:00",home:"Netherlands",away:"TBD",homeShort:"NED",awayShort:"TBD",stadium:"Lincoln Financial, Philly"},
-  {id:36,group:"Groupe F",phase:"group",date:"2026-06-24",time:"20:00",home:"Japan",away:"Tunisia",homeShort:"JPN",awayShort:"TUN",stadium:"Lumen Field, Seattle"},
-  {id:37,group:"Groupe G",phase:"group",date:"2026-06-16",time:"18:00",home:"Belgium",away:"Egypt",homeShort:"BEL",awayShort:"EGY",stadium:"Mercedes-Benz, Atlanta"},
-  {id:38,group:"Groupe G",phase:"group",date:"2026-06-16",time:"21:00",home:"Iran",away:"New Zealand",homeShort:"IRN",awayShort:"NZL",stadium:"Estadio BBVA, Monterrey"},
-  {id:39,group:"Groupe G",phase:"group",date:"2026-06-20",time:"21:00",home:"Belgium",away:"Iran",homeShort:"BEL",awayShort:"IRN",stadium:"AT&T Stadium, Dallas"},
-  {id:40,group:"Groupe G",phase:"group",date:"2026-06-21",time:"15:00",home:"New Zealand",away:"Egypt",homeShort:"NZL",awayShort:"EGY",stadium:"SoFi Stadium, LA"},
-  {id:41,group:"Groupe G",phase:"group",date:"2026-06-24",time:"20:00",home:"Belgium",away:"New Zealand",homeShort:"BEL",awayShort:"NZL",stadium:"Gillette Stadium, Boston"},
-  {id:42,group:"Groupe G",phase:"group",date:"2026-06-24",time:"20:00",home:"Egypt",away:"Iran",homeShort:"EGY",awayShort:"IRN",stadium:"Estadio Akron, Guadalajara"},
-  {id:43,group:"Groupe H",phase:"group",date:"2026-06-17",time:"15:00",home:"Spain",away:"Cape Verde",homeShort:"ESP",awayShort:"CPV",stadium:"Hard Rock, Miami"},
-  {id:44,group:"Groupe H",phase:"group",date:"2026-06-17",time:"18:00",home:"Saudi Arabia",away:"Uruguay",homeShort:"KSA",awayShort:"URU",stadium:"Levi's Stadium, SF"},
-  {id:45,group:"Groupe H",phase:"group",date:"2026-06-21",time:"18:00",home:"Spain",away:"Saudi Arabia",homeShort:"ESP",awayShort:"KSA",stadium:"Arrowhead, Kansas City"},
-  {id:46,group:"Groupe H",phase:"group",date:"2026-06-21",time:"21:00",home:"Uruguay",away:"Cape Verde",homeShort:"URU",awayShort:"CPV",stadium:"NRG Stadium, Houston"},
-  {id:47,group:"Groupe H",phase:"group",date:"2026-06-25",time:"20:00",home:"Spain",away:"Uruguay",homeShort:"ESP",awayShort:"URU",stadium:"MetLife, New York"},
-  {id:48,group:"Groupe H",phase:"group",date:"2026-06-25",time:"20:00",home:"Cape Verde",away:"Saudi Arabia",homeShort:"CPV",awayShort:"KSA",stadium:"BC Place, Vancouver"},
-  {id:49,group:"Groupe I",phase:"group",date:"2026-06-17",time:"21:00",home:"France",away:"Senegal",homeShort:"FRA",awayShort:"SEN",stadium:"BMO Field, Toronto"},
-  {id:50,group:"Groupe I",phase:"group",date:"2026-06-18",time:"15:00",home:"Norway",away:"TBD",homeShort:"NOR",awayShort:"TBD",stadium:"Mercedes-Benz, Atlanta"},
-  {id:51,group:"Groupe I",phase:"group",date:"2026-06-21",time:"21:00",home:"France",away:"Norway",homeShort:"FRA",awayShort:"NOR",stadium:"Lincoln Financial, Philly"},
-  {id:52,group:"Groupe I",phase:"group",date:"2026-06-22",time:"15:00",home:"Senegal",away:"TBD",homeShort:"SEN",awayShort:"TBD",stadium:"Estadio BBVA, Monterrey"},
-  {id:53,group:"Groupe I",phase:"group",date:"2026-06-25",time:"20:00",home:"France",away:"TBD",homeShort:"FRA",awayShort:"TBD",stadium:"AT&T Stadium, Dallas"},
-  {id:54,group:"Groupe I",phase:"group",date:"2026-06-25",time:"20:00",home:"Norway",away:"Senegal",homeShort:"NOR",awayShort:"SEN",stadium:"Lumen Field, Seattle"},
-  {id:55,group:"Groupe J",phase:"group",date:"2026-06-18",time:"18:00",home:"Argentina",away:"Algeria",homeShort:"ARG",awayShort:"ALG",stadium:"MetLife, New York"},
-  {id:56,group:"Groupe J",phase:"group",date:"2026-06-18",time:"21:00",home:"Austria",away:"Jordan",homeShort:"AUT",awayShort:"JOR",stadium:"Gillette Stadium, Boston"},
-  {id:57,group:"Groupe J",phase:"group",date:"2026-06-22",time:"18:00",home:"Argentina",away:"Austria",homeShort:"ARG",awayShort:"AUT",stadium:"SoFi Stadium, LA"},
-  {id:58,group:"Groupe J",phase:"group",date:"2026-06-22",time:"21:00",home:"Algeria",away:"Jordan",homeShort:"ALG",awayShort:"JOR",stadium:"Hard Rock, Miami"},
-  {id:59,group:"Groupe J",phase:"group",date:"2026-06-26",time:"20:00",home:"Argentina",away:"Jordan",homeShort:"ARG",awayShort:"JOR",stadium:"NRG Stadium, Houston"},
-  {id:60,group:"Groupe J",phase:"group",date:"2026-06-26",time:"20:00",home:"Algeria",away:"Austria",homeShort:"ALG",awayShort:"AUT",stadium:"Estadio Akron, Guadalajara"},
-  {id:61,group:"Groupe K",phase:"group",date:"2026-06-19",time:"15:00",home:"Portugal",away:"Colombia",homeShort:"POR",awayShort:"COL",stadium:"Arrowhead, Kansas City"},
-  {id:62,group:"Groupe K",phase:"group",date:"2026-06-19",time:"18:00",home:"Uzbekistan",away:"TBD",homeShort:"UZB",awayShort:"TBD",stadium:"BC Place, Vancouver"},
-  {id:63,group:"Groupe K",phase:"group",date:"2026-06-23",time:"15:00",home:"Portugal",away:"Uzbekistan",homeShort:"POR",awayShort:"UZB",stadium:"BMO Field, Toronto"},
-  {id:64,group:"Groupe K",phase:"group",date:"2026-06-23",time:"18:00",home:"Colombia",away:"TBD",homeShort:"COL",awayShort:"TBD",stadium:"Mercedes-Benz, Atlanta"},
-  {id:65,group:"Groupe K",phase:"group",date:"2026-06-27",time:"20:00",home:"Portugal",away:"TBD",homeShort:"POR",awayShort:"TBD",stadium:"Lincoln Financial, Philly"},
-  {id:66,group:"Groupe K",phase:"group",date:"2026-06-27",time:"20:00",home:"Colombia",away:"Uzbekistan",homeShort:"COL",awayShort:"UZB",stadium:"AT&T Stadium, Dallas"},
-  {id:67,group:"Groupe L",phase:"group",date:"2026-06-20",time:"15:00",home:"England",away:"Croatia",homeShort:"ENG",awayShort:"CRO",stadium:"Estadio Azteca, Mexico City"},
-  {id:68,group:"Groupe L",phase:"group",date:"2026-06-20",time:"18:00",home:"Ghana",away:"Panama",homeShort:"GHA",awayShort:"PAN",stadium:"Lumen Field, Seattle"},
-  {id:69,group:"Groupe L",phase:"group",date:"2026-06-24",time:"15:00",home:"England",away:"Ghana",homeShort:"ENG",awayShort:"GHA",stadium:"Arrowhead, Kansas City"},
-  {id:70,group:"Groupe L",phase:"group",date:"2026-06-24",time:"18:00",home:"Croatia",away:"Panama",homeShort:"CRO",awayShort:"PAN",stadium:"Hard Rock, Miami"},
-  {id:71,group:"Groupe L",phase:"group",date:"2026-06-28",time:"20:00",home:"England",away:"Panama",homeShort:"ENG",awayShort:"PAN",stadium:"MetLife, New York"},
-  {id:72,group:"Groupe L",phase:"group",date:"2026-06-28",time:"20:00",home:"Croatia",away:"Ghana",homeShort:"CRO",awayShort:"GHA",stadium:"SoFi Stadium, LA"},
-  // Phase à élimination directe
-  {id:73,group:"32e de finale",phase:"r32",date:"2026-07-01",time:"21:00",home:"1A",away:"3C/D/E",homeShort:"",awayShort:"",stadium:"AT&T Stadium, Dallas"},
-  {id:74,group:"32e de finale",phase:"r32",date:"2026-07-01",time:"18:00",home:"1B",away:"3A/D/E",homeShort:"",awayShort:"",stadium:"Gillette Stadium, Boston"},
-  {id:75,group:"32e de finale",phase:"r32",date:"2026-07-02",time:"21:00",home:"1C",away:"3A/B/F",homeShort:"",awayShort:"",stadium:"MetLife, New York"},
-  {id:76,group:"32e de finale",phase:"r32",date:"2026-07-02",time:"18:00",home:"1D",away:"3G/H/I",homeShort:"",awayShort:"",stadium:"NRG Stadium, Houston"},
-  {id:77,group:"32e de finale",phase:"r32",date:"2026-07-03",time:"21:00",home:"1E",away:"3J/K/L",homeShort:"",awayShort:"",stadium:"SoFi Stadium, LA"},
-  {id:78,group:"32e de finale",phase:"r32",date:"2026-07-03",time:"18:00",home:"1F",away:"3A/B/C",homeShort:"",awayShort:"",stadium:"Levi's Stadium, SF"},
-  {id:79,group:"32e de finale",phase:"r32",date:"2026-07-04",time:"21:00",home:"1G",away:"3D/E/F",homeShort:"",awayShort:"",stadium:"Mercedes-Benz, Atlanta"},
-  {id:80,group:"32e de finale",phase:"r32",date:"2026-07-04",time:"18:00",home:"1H",away:"2I",homeShort:"",awayShort:"",stadium:"BC Place, Vancouver"},
-  {id:81,group:"32e de finale",phase:"r32",date:"2026-07-05",time:"21:00",home:"1I",away:"2H",homeShort:"",awayShort:"",stadium:"Estadio Azteca, Mexico City"},
-  {id:82,group:"32e de finale",phase:"r32",date:"2026-07-05",time:"18:00",home:"1J",away:"2K",homeShort:"",awayShort:"",stadium:"Hard Rock, Miami"},
-  {id:83,group:"32e de finale",phase:"r32",date:"2026-07-06",time:"21:00",home:"1K",away:"2J",homeShort:"",awayShort:"",stadium:"Arrowhead, Kansas City"},
-  {id:84,group:"32e de finale",phase:"r32",date:"2026-07-06",time:"18:00",home:"1L",away:"2G",homeShort:"",awayShort:"",stadium:"Lumen Field, Seattle"},
-  {id:85,group:"32e de finale",phase:"r32",date:"2026-07-07",time:"21:00",home:"2A",away:"2F",homeShort:"",awayShort:"",stadium:"BMO Field, Toronto"},
-  {id:86,group:"32e de finale",phase:"r32",date:"2026-07-07",time:"18:00",home:"2B",away:"2E",homeShort:"",awayShort:"",stadium:"AT&T Stadium, Dallas"},
-  {id:87,group:"32e de finale",phase:"r32",date:"2026-07-08",time:"21:00",home:"2C",away:"2L",homeShort:"",awayShort:"",stadium:"MetLife, New York"},
-  {id:88,group:"32e de finale",phase:"r32",date:"2026-07-08",time:"18:00",home:"2D",away:"2K",homeShort:"",awayShort:"",stadium:"Gillette Stadium, Boston"},
-  {id:89,group:"8e de finale",phase:"r16",date:"2026-07-11",time:"21:00",home:"W73",away:"W74",homeShort:"",awayShort:"",stadium:"AT&T Stadium, Dallas"},
-  {id:90,group:"8e de finale",phase:"r16",date:"2026-07-12",time:"18:00",home:"W75",away:"W76",homeShort:"",awayShort:"",stadium:"SoFi Stadium, LA"},
-  {id:91,group:"8e de finale",phase:"r16",date:"2026-07-12",time:"21:00",home:"W77",away:"W78",homeShort:"",awayShort:"",stadium:"MetLife, New York"},
-  {id:92,group:"8e de finale",phase:"r16",date:"2026-07-13",time:"18:00",home:"W79",away:"W80",homeShort:"",awayShort:"",stadium:"NRG Stadium, Houston"},
-  {id:93,group:"8e de finale",phase:"r16",date:"2026-07-13",time:"21:00",home:"W81",away:"W82",homeShort:"",awayShort:"",stadium:"Levi's Stadium, SF"},
-  {id:94,group:"8e de finale",phase:"r16",date:"2026-07-14",time:"18:00",home:"W83",away:"W84",homeShort:"",awayShort:"",stadium:"Mercedes-Benz, Atlanta"},
-  {id:95,group:"8e de finale",phase:"r16",date:"2026-07-14",time:"21:00",home:"W85",away:"W86",homeShort:"",awayShort:"",stadium:"BC Place, Vancouver"},
-  {id:96,group:"8e de finale",phase:"r16",date:"2026-07-15",time:"18:00",home:"W87",away:"W88",homeShort:"",awayShort:"",stadium:"Hard Rock, Miami"},
-  {id:97,group:"Quart de finale",phase:"qf",date:"2026-07-17",time:"21:00",home:"W89",away:"W90",homeShort:"",awayShort:"",stadium:"MetLife, New York"},
-  {id:98,group:"Quart de finale",phase:"qf",date:"2026-07-18",time:"18:00",home:"W91",away:"W92",homeShort:"",awayShort:"",stadium:"AT&T Stadium, Dallas"},
-  {id:99,group:"Quart de finale",phase:"qf",date:"2026-07-18",time:"21:00",home:"W93",away:"W94",homeShort:"",awayShort:"",stadium:"SoFi Stadium, LA"},
-  {id:100,group:"Quart de finale",phase:"qf",date:"2026-07-19",time:"18:00",home:"W95",away:"W96",homeShort:"",awayShort:"",stadium:"Levi's Stadium, SF"},
-  {id:101,group:"Demi-finale",phase:"sf",date:"2026-07-14",time:"21:00",home:"W97",away:"W98",homeShort:"",awayShort:"",stadium:"AT&T Stadium, Dallas"},
-  {id:102,group:"Demi-finale",phase:"sf",date:"2026-07-15",time:"21:00",home:"W99",away:"W100",homeShort:"",awayShort:"",stadium:"MetLife, New York"},
-  {id:103,group:"3e place",phase:"3rd",date:"2026-07-18",time:"21:00",home:"L101",away:"L102",homeShort:"",awayShort:"",stadium:"Hard Rock, Miami"},
-  {id:104,group:"🏆 FINALE",phase:"final",date:"2026-07-19",time:"21:00",home:"W101",away:"W102",homeShort:"",awayShort:"",stadium:"MetLife, New York"},
-];
-
-const PHASE_CONFIG = {
-  group:{label:"Phase de groupes",mult:1},
-  r32:{label:"⚡ 32e de finale",mult:1.5},
-  r16:{label:"🔥 8e de finale",mult:2},
-  qf:{label:"💥 Quart de finale",mult:2.5},
-  sf:{label:"🌟 Demi-finale",mult:3},
-  "3rd":{label:"🥉 3e place",mult:2},
-  final:{label:"🏆 FINALE",mult:4},
-};
-
-const AVATARS = ["⚽","🦁","🐯","🦊","🐺","🦅","🐆","🦈","🔥","⚡","🌟","🏆","🎯","🦉","🐻","🦋"];
+import { useState, useEffect, useCallback } from "react";
+import { getUsers, saveUsers, getPronos, saveProno, subscribeToScores, subscribeToPronos } from "./firebase";
+import { CDM_MATCHES, PHASE_CONFIG, FLAGS, AVATARS } from "./matches";
+import AdminPage from "./AdminPage";
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────
 function calcPoints(prono, score, phase) {
@@ -158,8 +19,6 @@ function calcPoints(prono, score, phase) {
 
 function parseMatchDate(dateStr, timeStr) {
   const [h, m] = timeStr.split(":").map(Number);
-  // Les heures dans CDM_MATCHES sont en heure locale US/heure d'affichage
-  // On convertit en UTC (heure affichée = UTC-5 environ pour la plupart)
   const utcH = (h + 5) % 24;
   return new Date(`${dateStr}T${String(utcH).padStart(2,"0")}:${String(m).padStart(2,"0")}:00Z`);
 }
@@ -183,20 +42,6 @@ async function hashPwd(pwd) {
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
 }
 
-// Mappe les noms football-data.org vers nos noms internes
-const FD_NAME_MAP = {
-  "United States": "USA",
-  "Côte d'Ivoire": "Ivory Coast",
-  "Korea Republic": "South Korea",
-  "Bosnia & Herzegovina": "Bosnia and Herzegovina",
-  "IR Iran": "Iran",
-  "Curaçao": "Curaçao",
-};
-
-function normalizeName(name) {
-  return FD_NAME_MAP[name] || name;
-}
-
 const inputStyle = {
   background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)",
   borderRadius:12, padding:"13px 16px", fontSize:15, color:"#fff", outline:"none",
@@ -204,13 +49,21 @@ const inputStyle = {
 };
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────
-function AuthScreen({ users, onLogin, onSaveUsers }) {
+function AuthScreen({ users, onLogin, onSaveUsers, onAdmin }) {
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [avatar, setAvatar] = useState("⚽");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+
+  // Triple-tap sur le logo pour accéder à l'admin
+  const handleLogoTap = () => {
+    const next = tapCount + 1;
+    setTapCount(next);
+    if (next >= 5) { setTapCount(0); onAdmin(); }
+  };
 
   const handle = async () => {
     if (!username.trim() || !password.trim()) { setError("Remplis tous les champs"); return; }
@@ -236,7 +89,7 @@ function AuthScreen({ users, onLogin, onSaveUsers }) {
   return (
     <div style={{ background:"linear-gradient(180deg,#080c18 0%,#0f1629 100%)", minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", padding:"48px 24px 24px", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
       <div style={{ textAlign:"center", marginBottom:36 }}>
-        <div style={{ fontSize:64, marginBottom:4 }}>⚽</div>
+        <div style={{ fontSize:64, marginBottom:4, cursor:"pointer", userSelect:"none" }} onClick={handleLogoTap}>⚽</div>
         <div style={{ fontSize:11, color:"#facc15", letterSpacing:3, fontWeight:800, textTransform:"uppercase" }}>Coupe du Monde 2026</div>
         <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos des Potes</div>
         <div style={{ fontSize:12, color:"#475569", marginTop:4 }}>🇺🇸 USA · 🇲🇽 Mexique · 🇨🇦 Canada</div>
@@ -292,7 +145,7 @@ function AuthScreen({ users, onLogin, onSaveUsers }) {
 function MatchCard({ match, prono, onSave }) {
   const [editHome, setEditHome] = useState(prono?.home ?? "");
   const [editAway, setEditAway] = useState(prono?.away ?? "");
-  const { status, score, phase, home, away, group, date, time, stadium, liveMinute, apiStatus } = match;
+  const { status, score, phase, home, away, group, date, time, stadium } = match;
   const pts = prono && score ? calcPoints(prono, score, phase) : null;
   const matchDate = parseMatchDate(date, time);
   const f1 = FLAGS[home] || "🏳️";
@@ -314,12 +167,8 @@ function MatchCard({ match, prono, onSave }) {
     <div style={{ background:"rgba(255,255,255,0.025)", border:"1px solid rgba(255,255,255,0.06)", borderLeft:`3px solid ${borderColor}`, borderRadius:12, padding:"12px 14px", marginBottom:8 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
         <span style={{ fontSize:10, color:"#334155" }}>{group} · {formatDate(matchDate)}</span>
-        <div style={{ display:"flex", gap:4, alignItems:"center" }}>
-          {status==="live" && (
-            <span style={{ background:"#ef4444", color:"#fff", padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:800 }}>
-              🔴 {liveMinute ? `${liveMinute}'` : "LIVE"}
-            </span>
-          )}
+        <div>
+          {status==="live" && <span style={{ background:"#ef4444", color:"#fff", padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:800 }}>🔴 LIVE</span>}
           {status==="open" && <span style={{ background:"rgba(74,222,128,0.15)", color:"#4ade80", padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:700, border:"1px solid rgba(74,222,128,0.3)" }}>OUVERT</span>}
           {status==="locked" && <span style={{ background:"rgba(148,163,184,0.1)", color:"#475569", padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:700 }}>🔒</span>}
           {status==="played" && <span style={{ background:"rgba(96,165,250,0.15)", color:"#60a5fa", padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:700, border:"1px solid rgba(96,165,250,0.3)" }}>FT</span>}
@@ -331,7 +180,7 @@ function MatchCard({ match, prono, onSave }) {
           <div style={{ fontSize:12, fontWeight:700, color:"#f1f5f9", marginTop:2 }}>{home}</div>
         </div>
         <div style={{ minWidth:70, textAlign:"center" }}>
-          {score ? <div style={{ fontSize:24, fontWeight:900, color: status==="live" ? "#ef4444" : "#facc15" }}>{score[0]} – {score[1]}</div>
+          {score ? <div style={{ fontSize:24, fontWeight:900, color:"#facc15" }}>{score[0]} – {score[1]}</div>
                  : <div style={{ fontSize:12, color:"#334155", fontWeight:700 }}>VS</div>}
         </div>
         <div style={{ flex:1, textAlign:"left" }}>
@@ -374,7 +223,7 @@ function MatchCard({ match, prono, onSave }) {
   );
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────
+// ─── ONGLET MATCHS ────────────────────────────────────────────────────────
 function MatchsTab({ matches, pronos, onSave }) {
   const [filter, setFilter] = useState("open");
   const [search, setSearch] = useState("");
@@ -433,6 +282,7 @@ function MatchsTab({ matches, pronos, onSave }) {
   );
 }
 
+// ─── ONGLET CLASSEMENT ────────────────────────────────────────────────────
 function ClassementTab({ board, currentUser }) {
   return (
     <div style={{ padding:"14px 14px 0" }}>
@@ -499,7 +349,8 @@ function ClassementTab({ board, currentUser }) {
   );
 }
 
-function ProfilTab({ user, stats, rank, total, pronos, matches, onLogout }) {
+// ─── ONGLET PROFIL ────────────────────────────────────────────────────────
+function ProfilTab({ user, stats, rank, total, pronos, matches, onLogout, onAdmin }) {
   const played = matches.filter(m => m.score);
   const participation = played.length > 0 ? Math.round((Object.keys(pronos).length / played.length) * 100) : 0;
   const recentResults = matches.filter(m => m.score && pronos[m.id]).slice(-6).reverse();
@@ -538,10 +389,14 @@ function ProfilTab({ user, stats, rank, total, pronos, matches, onLogout }) {
       <button onClick={onLogout} style={{ width:"100%", marginTop:20, background:"rgba(248,113,113,0.08)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:12, padding:13, fontSize:13, color:"#f87171", cursor:"pointer", fontWeight:700 }}>
         Changer de joueur
       </button>
+      <button onClick={onAdmin} style={{ width:"100%", marginTop:8, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:12, padding:13, fontSize:12, color:"#334155", cursor:"pointer", fontWeight:600 }}>
+        🛠️ Accès Admin
+      </button>
     </div>
   );
 }
 
+// ─── NAV ──────────────────────────────────────────────────────────────────
 function BottomNav({ tab, setTab }) {
   return (
     <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"rgba(8,12,24,0.97)", backdropFilter:"blur(20px)", borderTop:"1px solid rgba(250,204,21,0.1)", display:"flex", padding:"7px 0 14px" }}>
@@ -559,79 +414,16 @@ function BottomNav({ tab, setTab }) {
 // ─── APP PRINCIPALE ───────────────────────────────────────────────────────
 export default function App() {
   const [tab, setTab] = useState("matchs");
+  const [showAdmin, setShowAdmin] = useState(false);
   const [currentUser, setCurrentUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("cdm_user")); } catch { return null; }
   });
   const [users, setUsers] = useState({});
   const [pronos, setPronos] = useState({});
   const [myPronos, setMyPronos] = useState({});
-  const [scores, setScores] = useState({});       // scores Firebase : { matchId: [home, away] }
-  const [liveData, setLiveData] = useState({});   // données API : { matchKey: { scoreHome, scoreAway, status, minute } }
+  const [scores, setScores] = useState({});
   const [loading, setLoading] = useState(true);
-  const [lastApiRefresh, setLastApiRefresh] = useState(null);
-  const [hasLive, setHasLive] = useState(false);
-  const intervalRef = useRef(null);
 
-  // ── Fetch scores depuis /api/scores (proxy Vercel → football-data.org) ─
-  const fetchLiveScores = useCallback(async () => {
-    try {
-      const res = await fetch("/api/scores");
-      if (!res.ok) return;
-      const data = await res.json();
-      setLiveData(data.matches || {});
-      setHasLive(data.hasLive || false);
-      setLastApiRefresh(new Date());
-
-      // Mettre à jour les scores terminés dans Firebase
-      // Pour chaque match dans nos données, on cherche une correspondance
-      const newScores = {};
-      CDM_MATCHES.forEach(m => {
-        if (!m.homeShort || !m.awayShort) return; // phase finale, pas encore de noms
-        // Cherche par date + codes courts
-        const dateStr = m.date;
-        // Cherche dans liveData par clé date + équipes
-        const entry = Object.values(data.matches || {}).find(d =>
-          d.utcDate?.startsWith(dateStr) &&
-          (d.homeTeamShort === m.homeShort || normalizeName(d.homeTeam) === m.home) &&
-          (d.awayTeamShort === m.awayShort || normalizeName(d.awayTeam) === m.away)
-        );
-        if (entry && entry.scoreHome !== null && entry.scoreAway !== null) {
-          if (entry.status === "FINISHED" || entry.status === "IN_PLAY" || entry.status === "PAUSED") {
-            newScores[m.id] = [entry.scoreHome, entry.scoreAway];
-          }
-        }
-      });
-
-      // Sauvegarder les scores terminés dans Firebase (pour les propager à tous les joueurs)
-      const finishedScores = {};
-      CDM_MATCHES.forEach(m => {
-        const entry = Object.values(data.matches || {}).find(d =>
-          d.utcDate?.startsWith(m.date) &&
-          d.status === "FINISHED" &&
-          (d.homeTeamShort === m.homeShort || normalizeName(d.homeTeam) === m.home)
-        );
-        if (entry && entry.scoreHome !== null) {
-          finishedScores[m.id] = [entry.scoreHome, entry.scoreAway];
-        }
-      });
-      if (Object.keys(finishedScores).length > 0) {
-        await saveScoresToFirebase(finishedScores);
-      }
-
-    } catch (err) {
-      console.warn("Erreur fetch scores:", err);
-    }
-  }, []);
-
-  // Refresh auto : 60s si match en direct, 5min sinon
-  useEffect(() => {
-    fetchLiveScores();
-    const interval = hasLive ? 60000 : 5 * 60000;
-    intervalRef.current = setInterval(fetchLiveScores, interval);
-    return () => clearInterval(intervalRef.current);
-  }, [fetchLiveScores, hasLive]);
-
-  // ── Firebase : users + pronos + scores persistants ─────────────────────
   useEffect(() => {
     getUsers().then(u => { setUsers(u); setLoading(false); });
   }, []);
@@ -671,35 +463,12 @@ export default function App() {
     await saveProno(currentUser.username, matchId, prono);
   }, [currentUser]);
 
-  // ── Fusion scores : Firebase (terminés) + API live ────────────────────
-  const mergedScores = { ...scores };
-  CDM_MATCHES.forEach(m => {
-    if (mergedScores[m.id]) return; // déjà dans Firebase
-    const entry = Object.values(liveData).find(d =>
-      d.utcDate?.startsWith(m.date) &&
-      (d.homeTeamShort === m.homeShort || normalizeName(d.homeTeam) === m.home)
-    );
-    if (entry && entry.scoreHome !== null && (entry.status === "IN_PLAY" || entry.status === "PAUSED")) {
-      mergedScores[m.id] = [entry.scoreHome, entry.scoreAway];
-    }
-  });
+  const matches = CDM_MATCHES.map(m => ({
+    ...m,
+    score: scores[m.id] ? scores[m.id] : null,
+    status: getStatus(m, scores),
+  }));
 
-  // ── Matchs enrichis ───────────────────────────────────────────────────
-  const matches = CDM_MATCHES.map(m => {
-    const liveEntry = Object.values(liveData).find(d =>
-      d.utcDate?.startsWith(m.date) &&
-      (d.homeTeamShort === m.homeShort || normalizeName(d.homeTeam) === m.home)
-    );
-    return {
-      ...m,
-      score: mergedScores[m.id] || null,
-      status: getStatus(m, mergedScores),
-      liveMinute: liveEntry?.minute || null,
-      apiStatus: liveEntry?.status || null,
-    };
-  });
-
-  // ── Classement ────────────────────────────────────────────────────────
   const leaderboard = Object.entries(users).map(([username, userData]) => {
     const userPronos = pronos[username] || {};
     let total = 0, exact = 0, bon = 0, bonne = 0;
@@ -718,6 +487,8 @@ export default function App() {
     return { username, total, exact, bon, bonne, avatar: userData.avatar };
   }).sort((a, b) => b.total - a.total);
 
+  if (showAdmin) return <AdminPage onBack={() => setShowAdmin(false)} />;
+
   if (loading) {
     return (
       <div style={{ background:"#080c18", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"sans-serif" }}>
@@ -730,7 +501,7 @@ export default function App() {
   }
 
   if (!currentUser) {
-    return <AuthScreen users={users} onLogin={handleLogin} onSaveUsers={handleSaveUsers} />;
+    return <AuthScreen users={users} onLogin={handleLogin} onSaveUsers={handleSaveUsers} onAdmin={() => setShowAdmin(true)} />;
   }
 
   const myRank = leaderboard.findIndex(u => u.username === currentUser.username) + 1;
@@ -738,7 +509,6 @@ export default function App() {
 
   return (
     <div style={{ background:"#080c18", minHeight:"100vh", fontFamily:"'Segoe UI',system-ui,sans-serif", color:"#f1f5f9", maxWidth:480, margin:"0 auto" }}>
-      {/* Header */}
       <div style={{ background:"linear-gradient(135deg,#080c18 0%,#111827 100%)", borderBottom:"1px solid rgba(250,204,21,0.15)", padding:"14px 16px 12px", position:"sticky", top:0, zIndex:100, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
           <div style={{ fontSize:10, color:"#facc15", letterSpacing:2, fontWeight:800, textTransform:"uppercase" }}>⚽ CDM 2026 Pronos</div>
@@ -747,27 +517,15 @@ export default function App() {
             {myRank > 0 && <span style={{ fontSize:12, color:"#facc15", marginLeft:8 }}>#{myRank}</span>}
           </div>
         </div>
-        <div style={{ textAlign:"right" }}>
-          <div style={{
-            background: hasLive ? "rgba(239,68,68,0.15)" : "rgba(74,222,128,0.1)",
-            border: hasLive ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(74,222,128,0.2)",
-            borderRadius:20, padding:"5px 12px", fontSize:11,
-            color: hasLive ? "#ef4444" : "#4ade80", fontWeight:700
-          }}>
-            {hasLive ? "🔴 Match en cours" : "⚡ Synchro active"}
-          </div>
-          {lastApiRefresh && (
-            <div style={{ fontSize:9, color:"#334155", marginTop:3 }}>
-              Mis à jour {lastApiRefresh.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" })}
-            </div>
-          )}
+        <div style={{ background:"rgba(74,222,128,0.1)", border:"1px solid rgba(74,222,128,0.2)", borderRadius:20, padding:"6px 14px", fontSize:11, color:"#4ade80", fontWeight:700 }}>
+          🟢 En direct
         </div>
       </div>
 
       <div style={{ paddingBottom:72 }}>
         {tab==="matchs" && <MatchsTab matches={matches} pronos={myPronos} onSave={handleSaveProno} />}
         {tab==="classement" && <ClassementTab board={leaderboard} currentUser={currentUser.username} matches={matches} />}
-        {tab==="profil" && <ProfilTab user={currentUser} stats={myStats} rank={myRank} total={leaderboard.length} pronos={myPronos} matches={matches} onLogout={handleLogout} />}
+        {tab==="profil" && <ProfilTab user={currentUser} stats={myStats} rank={myRank} total={leaderboard.length} pronos={myPronos} matches={matches} onLogout={handleLogout} onAdmin={() => setShowAdmin(true)} />}
       </div>
       <BottomNav tab={tab} setTab={setTab} />
     </div>
