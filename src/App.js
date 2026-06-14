@@ -243,7 +243,7 @@ function MatchCard({ match, prono, onSave }) {
 }
 
 function MatchsTab({ matches, pronos, onSave }) {
-  const [filter, setFilter] = useState("open");
+  const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
 
   const filtered = matches
