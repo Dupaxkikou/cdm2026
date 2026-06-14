@@ -35,8 +35,8 @@ const FLAGS = {
 
 const PHASE_CONFIG = {
   group:{label:"Phase de groupes",mult:1},
-  r32:{label:"⚡ 32e de finale",mult:1.5},
-  r16:{label:"🔥 8e de finale",mult:2},
+  r16:{label:"⚡ 16e de finale",mult:1.5},
+  r8:{label:"🔥 8e de finale",mult:2},
   qf:{label:"💥 Quart de finale",mult:2.5},
   sf:{label:"🌟 Demi-finale",mult:3},
   "3rd":{label:"🥉 3e place",mult:2},
