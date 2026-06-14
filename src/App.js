@@ -122,7 +122,7 @@ function AuthScreen({ users, onLogin, onSaveUsers }) {
       <div style={{ textAlign:"center", marginBottom:36 }}>
         <div style={{ fontSize:64, marginBottom:4 }}>⚽</div>
         <div style={{ fontSize:11, color:"#facc15", letterSpacing:3, fontWeight:800, textTransform:"uppercase" }}>Coupe du Monde 2026</div>
-        <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos des Potes</div>
+        <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos gratuits</div>
         <div style={{ fontSize:12, color:"#475569", marginTop:4 }}>🇺🇸 USA · 🇲🇽 Mexique · 🇨🇦 Canada</div>
         <div style={{ fontSize:11, color:"#334155", marginTop:2 }}>11 juin – 19 juillet 2026</div>
       </div>
