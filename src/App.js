@@ -473,6 +473,10 @@ export default function App() {
     await saveProno(currentUser.username, matchId, prono);
   }, [currentUser]);
 
+  console.log("MATCH 1 =", {
+  match: CDM_MATCHES[0],
+  score: scores[1],
+});
   const matches = CDM_MATCHES.map(m => ({
     ...m,
     score: scores[m.id] || null,
