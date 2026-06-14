@@ -343,7 +343,7 @@ function ClassementTab({ board, currentUser }) {
         ))}
         <div style={{ borderTop:"1px solid rgba(255,255,255,0.05)", marginTop:8, paddingTop:8 }}>
           <div style={{ fontSize:10, color:"#334155", marginBottom:4 }}>Multiplicateurs :</div>
-          {[["32e","×1.5"],["8e","×2"],["Quart","×2.5"],["Demi","×3"],["Finale","×4"]].map(([k,v])=>(
+          {[["16e","×1.5"],["8e","×2"],["Quart","×2.5"],["Demi","×3"],["Finale","×4"]].map(([k,v])=>(
             <div key={k} style={{ display:"flex", justifyContent:"space-between" }}>
               <span style={{ fontSize:11, color:"#475569" }}>{k}</span>
               <span style={{ fontSize:11, fontWeight:700, color:"#60a5fa" }}>{v}</span>
