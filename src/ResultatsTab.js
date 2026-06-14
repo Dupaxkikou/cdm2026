@@ -4,21 +4,27 @@ import { computeGroupStandings, computeThirdPlaceRanking } from "./standings";
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 function formatBracketDate(dateStr, timeStr) {
-  const d = new Date(`${dateStr}T${timeStr}:00`);
+  // 1. On reconstruit une date propre (IMPORTANT : format MM/DD ou DD/MM on gère manuellement)
+  const [month, day, year] = dateStr.split("/");
+
+  const isoString = `${year}-${month}-${day}T${timeStr}:00Z`;
+  const d = new Date(isoString);
+
+  // 2. Affichage toujours en heure Paris
   const date = new Intl.DateTimeFormat("fr-FR", {
-  timeZone: "Europe/Paris",
-  day: "numeric",
-  month: "long",
-  year: "numeric"
-}).format(d);
+    timeZone: "Europe/Paris",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(d);
 
-const time = new Intl.DateTimeFormat("fr-FR", {
-  timeZone: "Europe/Paris",
-  hour: "2-digit",
-  minute: "2-digit"
-}).format(d);
+  const time = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(d);
 
-return `${date} - ${time}`;
+  return `${date} - ${time}`;
 }
 
 const PHASE_COLUMNS = [
