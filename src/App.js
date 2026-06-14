@@ -434,14 +434,19 @@ export default function App() {
 
   // Récupération automatique des scores toutes les 5 minutes
   useEffect(() => {
-    const loadScores = async () => {
-      const apiScores = await fetchLiveScores();
-      if (apiScores) setScores(apiScores);
-    };
-    loadScores();
-    const interval = setInterval(loadScores, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const loadScores = async () => {
+    const apiScores = await fetchLiveScores();
+
+    console.log("API SCORES =", apiScores);
+
+    if (apiScores) setScores(apiScores);
+  };
+
+  loadScores();
+
+  const interval = setInterval(loadScores, 5 * 60 * 1000);
+  return () => clearInterval(interval);
+}, []);
 
   useEffect(() => {
     const unsub = subscribeToPronos(setPronos);
