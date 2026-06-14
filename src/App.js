@@ -2,22 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { getUsers, saveUsers, getPronos, saveProno, subscribeToScores, subscribeToPronos } from "./firebase";
 import { fetchLiveScores } from "./scores";
 import { CDM_MATCHES } from "./matches";
+import { FLAGS } from "./flags";
+import ResultatsTab from "./ResultatsTab";
 
 // ─── FLAGS ────────────────────────────────────────────────────────────────
-const FLAGS = {
-  "Mexico":"🇲🇽","South Africa":"🇿🇦","South Korea":"🇰🇷","Czechia":"🇨🇿",
-  "Canada":"🇨🇦","Bosnia and Herzegovina":"🇧🇦","Qatar":"🇶🇦","Switzerland":"🇨🇭",
-  "Brazil":"🇧🇷","Morocco":"🇲🇦","Haiti":"🇭🇹","Scotland":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
-  "USA":"🇺🇸","Paraguay":"🇵🇾","Australia":"🇦🇺","Turkey":"🇹🇷",
-  "Germany":"🇩🇪","Curaçao":"🇨🇼","Ivory Coast":"🇨🇮","Ecuador":"🇪🇨",
-  "Netherlands":"🇳🇱","Japan":"🇯🇵","Sweden":"🇸🇪","Tunisia":"🇹🇳",
-  "Belgium":"🇧🇪","Egypt":"🇪🇬","Iran":"🇮🇷","New Zealand":"🇳🇿",
-  "Spain":"🇪🇸","Cape Verde":"🇨🇻","Saudi Arabia":"🇸🇦","Uruguay":"🇺🇾",
-  "France":"🇫🇷","Senegal":"🇸🇳","Norway":"🇳🇴","Argentina":"🇦🇷",
-  "Algeria":"🇩🇿","Austria":"🇦🇹","Jordan":"🇯🇴","Portugal":"🇵🇹",
-  "DR Congo":"🇨🇩","Colombia":"🇨🇴","Uzbekistan":"🇺🇿","England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-  "Croatia":"🇭🇷","Ghana":"🇬🇭","Panama":"🇵🇦","Iraq":"🇮🇶",
-};
+// FLAGS importé depuis ./flags.js
 
 // Groupes officiels FIFA (tirage au sort du 5 décembre 2025)
 // A: Mexico, South Africa, South Korea, Czechia
@@ -35,15 +24,15 @@ const FLAGS = {
 
 const PHASE_CONFIG = {
   group:{label:"Phase de groupes",mult:1},
-  r16:{label:"⚡ 16e de finale",mult:1.5},
-  r8:{label:"🔥 8e de finale",mult:2},
+  r32:{label:"⚡ 32e de finale",mult:1.5},
+  r16:{label:"🔥 8e de finale",mult:2},
   qf:{label:"💥 Quart de finale",mult:2.5},
   sf:{label:"🌟 Demi-finale",mult:3},
   "3rd":{label:"🥉 3e place",mult:2},
   final:{label:"🏆 FINALE",mult:4},
 };
 
-const AVATARS = ["👳🏿‍♂️","🧑🏻‍🦼","🎅🏿","🖕🏻","🦻🏻","🫱🏻‍🫲🏿","🧖🏿‍♂️","🍆","🍑","🍒","🧌","🦧","🐒","🦁","🐺","🦅"];
+const AVATARS = ["⚽","🦁","🐯","🦊","🐺","🦅","🐆","🦈","🔥","⚡","🌟","🏆","🎯","🦉","🐻","🦋"];
 
 function calcPoints(prono, score, phase) {
   if (!score || !prono || prono.home === "" || prono.away === "") return null;
@@ -122,7 +111,7 @@ function AuthScreen({ users, onLogin, onSaveUsers }) {
       <div style={{ textAlign:"center", marginBottom:36 }}>
         <div style={{ fontSize:64, marginBottom:4 }}>⚽</div>
         <div style={{ fontSize:11, color:"#facc15", letterSpacing:3, fontWeight:800, textTransform:"uppercase" }}>Coupe du Monde 2026</div>
-        <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos gratuits</div>
+        <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos des Potes</div>
         <div style={{ fontSize:12, color:"#475569", marginTop:4 }}>🇺🇸 USA · 🇲🇽 Mexique · 🇨🇦 Canada</div>
         <div style={{ fontSize:11, color:"#334155", marginTop:2 }}>11 juin – 19 juillet 2026</div>
       </div>
@@ -243,7 +232,7 @@ function MatchCard({ match, prono, onSave }) {
 }
 
 function MatchsTab({ matches, pronos, onSave }) {
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("open");
   const [search, setSearch] = useState("");
 
   const filtered = matches
@@ -343,7 +332,7 @@ function ClassementTab({ board, currentUser }) {
         ))}
         <div style={{ borderTop:"1px solid rgba(255,255,255,0.05)", marginTop:8, paddingTop:8 }}>
           <div style={{ fontSize:10, color:"#334155", marginBottom:4 }}>Multiplicateurs :</div>
-          {[["16e","×1.5"],["8e","×2"],["Quart","×2.5"],["Demi","×3"],["Finale","×4"]].map(([k,v])=>(
+          {[["32e","×1.5"],["8e","×2"],["Quart","×2.5"],["Demi","×3"],["Finale","×4"]].map(([k,v])=>(
             <div key={k} style={{ display:"flex", justifyContent:"space-between" }}>
               <span style={{ fontSize:11, color:"#475569" }}>{k}</span>
               <span style={{ fontSize:11, fontWeight:700, color:"#60a5fa" }}>{v}</span>
@@ -401,7 +390,7 @@ function ProfilTab({ user, stats, rank, total, pronos, matches, onLogout }) {
 function BottomNav({ tab, setTab }) {
   return (
     <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:480, background:"rgba(8,12,24,0.97)", backdropFilter:"blur(20px)", borderTop:"1px solid rgba(250,204,21,0.1)", display:"flex", padding:"7px 0 14px" }}>
-      {[["matchs","⚽","Matchs"],["classement","🏆","Classement"],["profil","👤","Profil"]].map(([k,icon,label])=>(
+      {[["matchs","⚽","Matchs"],["resultats","📊","Résultats"],["classement","🏆","Classement"],["profil","👤","Profil"]].map(([k,icon,label])=>(
         <button key={k} onClick={()=>setTab(k)} style={{ flex:1, background:"none", border:"none", cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", gap:2, padding:"3px 0" }}>
           <span style={{ fontSize:21, filter:tab===k?"none":"grayscale(1) opacity(0.4)" }}>{icon}</span>
           <span style={{ fontSize:10, fontWeight:800, letterSpacing:0.5, color:tab===k?"#facc15":"#334155" }}>{label}</span>
@@ -434,19 +423,14 @@ export default function App() {
 
   // Récupération automatique des scores toutes les 5 minutes
   useEffect(() => {
-  const loadScores = async () => {
-    const apiScores = await fetchLiveScores();
-
-    console.log("API SCORES =", apiScores);
-
-    if (apiScores) setScores(apiScores);
-  };
-
-  loadScores();
-
-  const interval = setInterval(loadScores, 5 * 60 * 1000);
-  return () => clearInterval(interval);
-}, []);
+    const loadScores = async () => {
+      const apiScores = await fetchLiveScores();
+      if (apiScores) setScores(apiScores);
+    };
+    loadScores();
+    const interval = setInterval(loadScores, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const unsub = subscribeToPronos(setPronos);
@@ -472,7 +456,7 @@ export default function App() {
     setMyPronos(prev => ({ ...prev, [matchId]: prono }));
     await saveProno(currentUser.username, matchId, prono);
   }, [currentUser]);
-  
+
   const matches = CDM_MATCHES.map(m => ({
     ...m,
     score: scores[m.id] || null,
@@ -527,6 +511,7 @@ export default function App() {
       </div>
       <div style={{ paddingBottom:72 }}>
         {tab==="matchs" && <MatchsTab matches={matches} pronos={myPronos} onSave={handleSaveProno} />}
+        {tab==="resultats" && <ResultatsTab matches={matches} />}
         {tab==="classement" && <ClassementTab board={leaderboard} currentUser={currentUser.username} />}
         {tab==="profil" && <ProfilTab user={currentUser} stats={myStats} rank={myRank} total={leaderboard.length} pronos={myPronos} matches={matches} onLogout={handleLogout} />}
       </div>
