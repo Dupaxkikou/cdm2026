@@ -4,10 +4,21 @@ import { computeGroupStandings, computeThirdPlaceRanking } from "./standings";
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 function formatBracketDate(dateStr, timeStr) {
-  const d = new Date(`${dateStr}T${timeStr}:00Z`);
-  const date = d.toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric", timeZone:"Europe/Paris" });
-  const time = d.toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit", timeZone:"Europe/Paris" });
-  return `${date} - ${time}`;
+  const d = new Date(`${dateStr}T${timeStr}:00`);
+  const date = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris",
+  day: "numeric",
+  month: "long",
+  year: "numeric"
+}).format(d);
+
+const time = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Europe/Paris",
+  hour: "2-digit",
+  minute: "2-digit"
+}).format(d);
+
+return `${date} - ${time}`;
 }
 
 const PHASE_COLUMNS = [
