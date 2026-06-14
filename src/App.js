@@ -32,7 +32,7 @@ const PHASE_CONFIG = {
   final:{label:"🏆 FINALE",mult:4},
 };
 
-const AVATARS = ["⚽","🦁","🐯","🦊","🐺","🦅","🐆","🦈","🔥","⚡","🌟","🏆","🎯","🦉","🐻","🦋"];
+const AVATARS = ["👳🏿‍♂️","🧑🏻‍🦼","🎅🏿","🖕🏻","🦻🏻","🫱🏻‍🫲🏿","🧖🏿‍♂️","🍆","🍑","🍒","🧌","🦧","🐒","🦁","🐺","🦅"];
 
 function calcPoints(prono, score, phase) {
   if (!score || !prono || prono.home === "" || prono.away === "") return null;
