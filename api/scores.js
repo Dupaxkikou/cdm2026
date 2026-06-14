@@ -1,12 +1,13 @@
 // Vercel Serverless Function
 // Source : worldcup26.ir/get/games
 //
-// PROBLEME RESOLU : Les ID de matchs de worldcup26.ir (1-104) sont dans un ordre
-// différent de nos ID internes (1-104). Cette table fait la correspondance exacte
-// entre leur ID de match et le nôtre, construite en comparant les équipes de
-// chaque match des deux côtés.
+// Renvoie pour chaque match mappé (1-72, phase de groupes) :
+//  - le score actuel (même en direct, pas que les matchs terminés)
+//  - le statut réel selon l'API : "live" ou "finished"
 //
-// Format: apiId: { id: notreId, swap: true si home/away sont inversés }
+// Le front-end utilise ce statut comme source de vérité pour verrouiller
+// les pronostics dès que le match commence, indépendamment de l'heure
+// programmée dans matches.js.
 
 const MAPPING = {
   1:{id:1},   2:{id:2},   3:{id:7},   4:{id:19},  5:{id:14},  6:{id:20},
@@ -29,7 +30,7 @@ const MAPPING = {
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate");
+  res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate");
 
   try {
     const response = await fetch("https://worldcup26.ir/get/games");
@@ -38,24 +39,30 @@ export default async function handler(req, res) {
     const games = data.games || [];
 
     const scores = {};
+    const status = {};
+
     games.forEach(g => {
       const apiId = parseInt(g.id);
       const map = MAPPING[apiId];
       if (!map) return;
 
-      // On ne prend que les matchs terminés (finished === "TRUE")
-      if (g.finished !== "TRUE") return;
+      const finished = g.finished === "TRUE" || g.finished === true;
+      const elapsed = (g.time_elapsed || "").toLowerCase();
+      const live = !finished && elapsed && elapsed !== "notstarted";
+
+      if (!finished && !live) return; // pas encore commencé -> on laisse le front gérer
 
       const h = parseInt(g.home_score);
       const a = parseInt(g.away_score);
       if (isNaN(h) || isNaN(a)) return;
 
       scores[map.id] = map.swap ? [a, h] : [h, a];
+      status[map.id] = finished ? "finished" : "live";
     });
 
-    res.status(200).json({ scores, totalGames: games.length, updatedAt: new Date().toISOString() });
+    res.status(200).json({ scores, status, totalGames: games.length, updatedAt: new Date().toISOString() });
   } catch (err) {
     console.error("Erreur API scores:", err);
-    res.status(500).json({ error: err.message, scores: {} });
+    res.status(500).json({ error: err.message, scores: {}, status: {} });
   }
 }

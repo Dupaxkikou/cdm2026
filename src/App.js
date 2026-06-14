@@ -5,9 +5,6 @@ import { CDM_MATCHES } from "./matches";
 import { FLAGS } from "./flags";
 import ResultatsTab from "./ResultatsTab";
 
-// ─── FLAGS ────────────────────────────────────────────────────────────────
-// FLAGS importé depuis ./flags.js
-
 // Groupes officiels FIFA (tirage au sort du 5 décembre 2025)
 // A: Mexico, South Africa, South Korea, Czechia
 // B: Canada, Bosnia and Herzegovina, Qatar, Switzerland
@@ -24,15 +21,15 @@ import ResultatsTab from "./ResultatsTab";
 
 const PHASE_CONFIG = {
   group:{label:"Phase de groupes",mult:1},
-  r32:{label:"⚡ 32e de finale",mult:1.5},
-  r16:{label:"🔥 8e de finale",mult:2},
+  r16:{label:"⚡ 16e de finale",mult:1.5},
+  r8:{label:"🔥 8e de finale",mult:2},
   qf:{label:"💥 Quart de finale",mult:2.5},
   sf:{label:"🌟 Demi-finale",mult:3},
   "3rd":{label:"🥉 3e place",mult:2},
   final:{label:"🏆 FINALE",mult:4},
 };
 
-const AVATARS = ["👳🏿‍♂️","🧑🏻‍🦼","🎅🏿","🖕🏻","🦻🏻","🫱🏻‍🫲🏿","🧖🏿‍♂️","🍆","🍑","🍒","🧌","🦧","🐒","🦁","🐺","🦅"];
+const AVATARS = ["⚽","🦁","🐯","🦊","🐺","🦅","🐆","🦈","🔥","⚡","🌟","🏆","🎯","🦉","🐻","🦋"];
 
 function calcPoints(prono, score, phase) {
   if (!score || !prono || prono.home === "" || prono.away === "") return null;
@@ -47,17 +44,20 @@ function calcPoints(prono, score, phase) {
   return Math.round(pts * mult);
 }
 
-// Statut basé sur la date UTC réelle du match
-function getStatus(match, scores) {
-  if (scores[match.id]) return "played";
+// Statut du match : priorité au statut renvoyé par l'API en temps réel
+// (live / finished), qui ne dépend pas des horaires (parfois imprécis)
+// codés dans matches.js. Ces horaires ne servent plus qu'à déterminer la
+// fenêtre "pronos ouverts" (48h avant le coup d'envoi estimé) tant que
+// l'API n'a pas encore signalé le match comme commencé.
+function getStatus(match, apiStatus) {
+  const api = apiStatus[match.id];
+  if (api === "finished") return "played";
+  if (api === "live") return "live";
+
   const now = new Date();
-  // Les heures dans CDM_MATCHES sont déjà en UTC
   const matchDate = new Date(`${match.date}T${match.time}:00Z`);
-  const endDate = new Date(matchDate.getTime() + 2 * 3600000); // +2h = fin du match
   const open48h = new Date(matchDate.getTime() - 48 * 3600000);
-  if (now >= endDate) return "played"; // terminé
-  if (now >= matchDate) return "live";  // en cours
-  if (now >= open48h) return "open";    // ouvert aux pronos
+  if (now >= open48h) return "open";
   return "locked";
 }
 
@@ -111,7 +111,7 @@ function AuthScreen({ users, onLogin, onSaveUsers }) {
       <div style={{ textAlign:"center", marginBottom:36 }}>
         <div style={{ fontSize:64, marginBottom:4 }}>⚽</div>
         <div style={{ fontSize:11, color:"#facc15", letterSpacing:3, fontWeight:800, textTransform:"uppercase" }}>Coupe du Monde 2026</div>
-        <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos des Potes</div>
+        <div style={{ fontSize:26, fontWeight:900, color:"#fff", marginTop:2 }}>Pronos gratuits</div>
         <div style={{ fontSize:12, color:"#475569", marginTop:4 }}>🇺🇸 USA · 🇲🇽 Mexique · 🇨🇦 Canada</div>
         <div style={{ fontSize:11, color:"#334155", marginTop:2 }}>11 juin – 19 juillet 2026</div>
       </div>
@@ -200,7 +200,7 @@ function MatchCard({ match, prono, onSave }) {
         </div>
       </div>
       <div style={{ fontSize:10, color:"#1e293b", textAlign:"center", marginTop:4 }}>📍 {stadium}</div>
-      {(status==="open" || status==="live") && (
+      {status==="open" && (
         <div style={{ marginTop:12, display:"flex", alignItems:"center", gap:8, justifyContent:"center" }}>
           <span style={{ fontSize:11, color:"#475569", fontWeight:600 }}>Mon prono :</span>
           <input value={editHome} onChange={e => setEditHome(e.target.value)} onBlur={doSave} placeholder="0" type="number" min="0" max="20"
@@ -213,9 +213,9 @@ function MatchCard({ match, prono, onSave }) {
           </button>
         </div>
       )}
-      {(status==="played" || status==="locked") && prono && (
+      {(status==="played" || status==="locked" || status==="live") && prono && (
         <div style={{ marginTop:10, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
-          <span style={{ fontSize:11, color:"#475569" }}>Mon prono :</span>
+          <span style={{ fontSize:11, color:"#475569" }}>🔒 Mon prono :</span>
           <span style={{ fontSize:14, fontWeight:800, color:"#94a3b8" }}>{prono.home}–{prono.away}</span>
           {pts !== null && (
             <span style={{ padding:"2px 10px", borderRadius:20, fontSize:11, fontWeight:800, background:ptsBg.bg, color:ptsBg.color, border:`1px solid ${ptsBg.border}` }}>
@@ -224,15 +224,19 @@ function MatchCard({ match, prono, onSave }) {
           )}
         </div>
       )}
+      {status==="live" && !prono && (
+        <div style={{ marginTop:6, textAlign:"center", fontSize:11, color:"#f87171", fontWeight:700 }}>🔒 Match en cours — aucun prono enregistré</div>
+      )}
       {status==="open" && !prono && (
         <div style={{ marginTop:6, textAlign:"center", fontSize:11, color:"#f87171", fontWeight:700 }}>⚠️ Pas encore pronostiqué !</div>
       )}
     </div>
+
   );
 }
 
 function MatchsTab({ matches, pronos, onSave }) {
-  const [filter, setFilter] = useState("open");
+  const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
 
   const filtered = matches
@@ -332,7 +336,7 @@ function ClassementTab({ board, currentUser }) {
         ))}
         <div style={{ borderTop:"1px solid rgba(255,255,255,0.05)", marginTop:8, paddingTop:8 }}>
           <div style={{ fontSize:10, color:"#334155", marginBottom:4 }}>Multiplicateurs :</div>
-          {[["32e","×1.5"],["8e","×2"],["Quart","×2.5"],["Demi","×3"],["Finale","×4"]].map(([k,v])=>(
+          {[["16e","×1.5"],["8e","×2"],["Quart","×2.5"],["Demi","×3"],["Finale","×4"]].map(([k,v])=>(
             <div key={k} style={{ display:"flex", justifyContent:"space-between" }}>
               <span style={{ fontSize:11, color:"#475569" }}>{k}</span>
               <span style={{ fontSize:11, fontWeight:700, color:"#60a5fa" }}>{v}</span>
@@ -410,6 +414,7 @@ export default function App() {
   const [pronos, setPronos] = useState({});
   const [myPronos, setMyPronos] = useState({});
   const [scores, setScores] = useState({});
+  const [apiStatus, setApiStatus] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -421,13 +426,18 @@ export default function App() {
     getPronos(currentUser.username).then(setMyPronos);
   }, [currentUser]);
 
-  // Récupération automatique des scores toutes les 5 minutes
+  // Récupération automatique des scores + statut live toutes les 5 minutes
   useEffect(() => {
     const loadScores = async () => {
-      const apiScores = await fetchLiveScores();
-      if (apiScores) setScores(apiScores);
+      const result = await fetchLiveScores();
+      if (result) {
+        setScores(result.scores || {});
+        setApiStatus(result.status || {});
+      }
     };
+
     loadScores();
+
     const interval = setInterval(loadScores, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
@@ -460,7 +470,7 @@ export default function App() {
   const matches = CDM_MATCHES.map(m => ({
     ...m,
     score: scores[m.id] || null,
-    status: getStatus(m, scores),
+    status: getStatus(m, apiStatus),
   }));
 
   const leaderboard = Object.entries(users).map(([username, userData]) => {
